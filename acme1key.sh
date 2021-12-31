@@ -69,6 +69,10 @@ function renew(){
     bash /root/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
 }
 
+function update(){
+    wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme1key@master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
+}
+
 function start_menu(){
     clear
     red "=================================="
@@ -91,6 +95,7 @@ function start_menu(){
     case "$menuNumberInput" in     
         1 ) acme ;;
         2 ) renew ;;
+        v ) update ;;
         0 ) exit 0
     ;;       
     esac
