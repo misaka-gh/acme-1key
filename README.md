@@ -4,5 +4,8 @@
 
 ## 使用方法
 
-开发中......
+```shell
+wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme1key@master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
+```
 
+快捷方式 `bash acme1key.sh`
