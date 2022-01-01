@@ -16,3 +16,9 @@ wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme1key@master/acme1key.sh && c
 
 ## 交流群
 [Telegram](https://t.me/misakanetcn)
+
+## 感谢列表
+
+感谢他们的贡献，让脚本得到进一步完善
+
+Acme.sh https://github.com/acmesh-official/acme.sh
