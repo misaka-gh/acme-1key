@@ -40,10 +40,8 @@ function checktls(){
     if [[ -f /root/cert.crt && -f /root/private.key ]]; then
         if [[ -s /root/cert.crt && -s /root/private.key ]]; then
             green "证书申请成功！证书（cert.crt）和私钥（private.key）已保存到 /root 文件夹" 
-            yellow "证书crt路径如下："
-            green "/root/cert.crt"
-            yellow "私钥key路径如下："
-            green "/root/private.key"
+            yellow "证书crt路径如下：/root/cert.crt"
+            yellow "私钥key路径如下：/root/private.key"
             exit 0
         else
             red "遗憾，证书申请失败"
@@ -67,7 +65,7 @@ function acme(){
     v6=$(curl -s6m3 https://ip.gs)
     v4=$(curl -s4m3 https://ip.gs)
     read -p "请输入注册邮箱：" acmeEmail
-    curl https://get.acme.sh | sh -s email=$acmeEmail@gmail.com
+    curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash /root/.acme.sh/acme.sh --upgrade --auto-upgrade
     read -p "请输入解析完成的域名:" domain
@@ -90,7 +88,7 @@ function acme(){
             if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
             red "当前二级域名解析的IP与当前VPS的IP不匹配"
             green "建议如下："
-            yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
+            yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)"
             yellow "2、请检查域名解析网站设置的IP是否正确"
             exit 0
             fi
@@ -117,7 +115,7 @@ function acme(){
 function Certificate(){
     [[ -z $(acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh无法执行" && exit 0
     bash /root/.acme.sh/acme.sh --list
-    read -p "请输入要撤销并删除的域名证书（复制Main_Domain下显示的域名）:" domain
+    read -p "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
     if [[ -n $(bash /root/.acme.sh/acme.sh --list | grep $domain) ]]; then
         bash /root/.acme.sh/acme.sh --revoke -d ${domain} --ecc
         bash /root/.acme.sh/acme.sh --remove -d ${domain} --ecc
