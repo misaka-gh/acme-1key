@@ -112,7 +112,7 @@ function acme(){
     exit 0
 }
 
-function Certificate(){
+function certificate(){
     [[ -z $(acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh无法执行" && exit 0
     bash /root/.acme.sh/acme.sh --list
     read -p "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
@@ -160,7 +160,7 @@ function menu(){
     read -p "请输入数字:" NumberInput
     case "$NumberInput" in     
         1 ) acme;;
-        2 ) Certificate;;
+        2 ) certificate;;
         3 ) acmerenew;;
         0 ) exit 0    
     esac
