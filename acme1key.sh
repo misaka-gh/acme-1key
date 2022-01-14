@@ -33,7 +33,7 @@ elif cat /proc/version | grep -q -E -i "ubuntu"; then
 elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
     release="Centos"
 else 
-    red "不支持你当前系统，请选择使用Ubuntu,Debian,Centos系统" && exit 1    
+    red "不支持当前系统，请使用Ubuntu，Debian，Centos系统" && exit 1    
 fi
 
 function checktls(){
@@ -46,11 +46,10 @@ function checktls(){
         else
             red "遗憾，证书申请失败"
             green "建议如下："
-            yellow "1、检测防火墙是否打开"
-            yellow "2、请查看80端口是否被占用（先lsof -i :80 后kill -9 进程id）"
-            yellow "3、更换下二级域名名称再尝试执行脚本"
-            yellow "4. 关闭nginx等运行环境"
-            yellow "5. 关闭WARP"
+            yellow "1. 检测防火墙是否打开"
+            yellow "2. 检查80端口是否被占用（先lsof -i :80 后kill -9 进程id）"
+            yellow "3. 更换域名再尝试执行脚本"
+            yellow "4. 关闭WARP"
             exit 0
         fi
     fi
@@ -74,19 +73,19 @@ function acme(){
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
     domainIP=$(curl -s ipget.net/?ip="$domain")
         if [[ $domainIP = $v4 ]]; then
-            yellow "当前二级域名解析的IPV4：$domainIP" && sleep 1
+            yellow "当前域名解析的IPV4：$domainIP" && sleep 1
             bash /root/.acme.sh/acme.sh  --issue -d ${domain} --standalone -k ec-256 --server letsencrypt
         fi
         if [[ $domainIP = $v6 ]]; then
-            yellow "当前二级域名解析的IPV6：$domainIP" && sleep 1
+            yellow "当前域名解析的IPV6：$domainIP" && sleep 1
             bash /root/.acme.sh/acme.sh  --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --listen-v6
         fi
         if [[ -n $(echo $domainIP | grep nginx) ]]; then
-            yellow "域名解析无效，请检查二级域名是否填写正确或等待解析完成再执行脚本"
+            yellow "域名解析无效，请检查域名是否填写正确或等待解析完成再执行脚本"
             exit 0
         elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
             if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
-            red "当前二级域名解析的IP与当前VPS的IP不匹配"
+            red "当前域名解析的IP与VPS的IP不匹配"
             green "建议如下："
             yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)"
             yellow "2、请检查域名解析网站设置的IP是否正确"
@@ -122,7 +121,7 @@ function certificate(){
         green "撤销并删除${domain}域名证书成功"
         exit 0
     else
-        red "未找到你输入的${domain}域名证书，请自行核实！"
+        red "未找到你输入的${domain}域名证书，请自行检查！"
         exit 0
     fi
 }
@@ -152,10 +151,10 @@ function menu(){
     echo "                           "
     red "=================================="
     echo "                           "
-    green "1.  首次申请证书（自动识别单域名与泛域名）"
-    green "2.  查询、撤销并删除当前已申请的域名证书"
-    green "3.  手动续期域名证书"
-    green "0.  退出"
+    green "1. 申请证书（自动识别单域名与泛域名）"
+    green "2. 查询、撤销并删除当前已申请的域名证书"
+    green "3. 手动续期域名证书"
+    green "0. 退出"
     echo "         "
     read -p "请输入数字:" NumberInput
     case "$NumberInput" in     
