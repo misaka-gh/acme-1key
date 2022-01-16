@@ -147,7 +147,7 @@ function menu(){
     red "    Acme.sh 域名证书一键申请脚本     "
     red "          by 小御坂的破站           "
     echo "                           "
-    red "  Site: https://blog.misaka.rest  "
+    red "  Site: https://owo.misaka.rest  "
     echo "                           "
     red "=================================="
     echo "                           "
