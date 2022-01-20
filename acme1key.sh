@@ -56,14 +56,22 @@ function checktls(){
 }
 
 function acme(){   
-    green "安装依赖及acme……"
+    green "正在安装依赖及acme.sh……"
     [[ $(type -P yum) ]] && yumapt='yum -y' || yumapt='apt -y'
     [[ $(type -P curl) ]] || $yumapt update;$yumapt install curl
     [[ $(type -P socat) ]] || $yumapt install socat
     [[ $(type -P binutils) ]] || $yumapt install binutils
-    v6=$(curl -s6m3 https://ip.gs)
-    v4=$(curl -s4m3 https://ip.gs)
-    read -p "请输入注册邮箱：" acmeEmail
+    v6=`curl -s6m2 https://ip.gs`
+    v4=`curl -s4m2 https://ip.gs`
+    if [ -z $v4 ]; then
+        echo -e "nameserver 2001:67c:2b0::4\nnameserver 2001:67c:2b0::6" > /etc/resolv.conf
+    fi
+    read -p "请输入注册邮箱（例：admin@bilibili.com，或留空自动生成）：" acmeEmail
+    if [ -z $acmeEmail ]; then
+        autoEmail=`head -n 20 /dev/urandom | sed 's/[^a-z]//g' | strings -n 4 | tr '[:upper:]' '[:lower:]' | head -1`
+        acmeEmail=$autoEmail@gmail.com
+        yellow "检测到你未输入邮箱，脚本已为你自动生成一个邮箱：$acmeEmail"
+    fi
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash /root/.acme.sh/acme.sh --upgrade --auto-upgrade
