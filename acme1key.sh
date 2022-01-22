@@ -58,6 +58,7 @@ function acme(){
     green "正在安装acme.sh及其依赖......"
     ${PACKAGE_UPDATE[int]}
     ${PACKAGE_INSTALL[int]} curl wget socat binutils
+    checkwarp
     v6=`curl -s6m2 https://ip.gs`
     v4=`curl -s4m2 https://ip.gs`
     if [ -z $v4 ]; then
