@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+REGEX=("debian" "ubuntu" "centos|red hat|kernel|oracle linux|alma|rocky" "'amazon linux'" "alpine")
+RELEASE=("Debian" "Ubuntu" "CentOS" "CentOS" "Alpine")
+PACKAGE_UPDATE=("apt -y update" "apt -y update" "yum -y update" "yum -y update" "apk update -f")
+PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y install" "apk add -f")
+
 red(){
     echo -e "\033[31m\033[01m$1\033[0m";
 }
@@ -12,29 +17,24 @@ yellow(){
     echo -e "\033[33m\033[01m$1\033[0m";
 }
 
-white(){
-    echo -e "\033[37m\033[01m$1\033[0m";
-}
-
 [[ $EUID -ne 0 ]] && yellow "请在root用户下运行脚本" && exit 1
 
-if [[ -f /etc/redhat-release ]]; then
-    release="Centos"
-elif cat /etc/issue | grep -q -E -i "debian"; then
-    release="Debian"
-elif cat /etc/issue | grep -q -E -i "ubuntu"; then
-    release="Ubuntu"
-elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
-    release="Centos"
-elif cat /proc/version | grep -q -E -i "debian"; then
-    release="Debian"
-elif cat /proc/version | grep -q -E -i "ubuntu"; then
-    release="Ubuntu"
-elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
-    release="Centos"
-else 
-    red "不支持当前系统，请使用Ubuntu，Debian，Centos系统" && exit 1    
-fi
+CMD=("$(grep -i pretty_name /etc/os-release 2>/dev/null | cut -d \" -f2)" "$(hostnamectl 2>/dev/null | grep -i system | cut -d : -f2)" "$(lsb_release -sd 2>/dev/null)" "$(grep -i description /etc/lsb-release 2>/dev/null | cut -d \" -f2)" "$(grep . /etc/redhat-release 2>/dev/null)" "$(grep . /etc/issue 2>/dev/null | cut -d \\ -f1 | sed '/^[ ]*$/d')")
+
+for i in "${CMD[@]}"; do
+	SYS="$i" && [[ -n $SYS ]] && echo $SYS && break
+done
+
+for ((int=0; int<${#REGEX[@]}; int++)); do
+	[[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && [[ -n $SYSTEM ]] && break
+done
+
+[[ -z $SYSTEM ]] && red "不支持VPS的当前系统，请使用主流操作系统" && exit 1
+
+function checkwarp(){
+    green "检测WARP状态....."
+    [[ -n $(wg) ]] && wg-quick down wgcf && yellow "目前VPS已开启WARP，为了能够正常申请证书，已为你自动关闭WARP以确保证书申请正常执行"
+}
 
 function checktls(){
     if [[ -f /root/cert.crt && -f /root/private.key ]]; then
@@ -44,33 +44,31 @@ function checktls(){
             yellow "私钥key路径如下：/root/private.key"
             exit 0
         else
-            red "遗憾，证书申请失败"
+            red "抱歉，证书申请失败"
             green "建议如下："
             yellow "1. 检测防火墙是否打开"
             yellow "2. 检查80端口是否被占用（先lsof -i :80 后kill -9 进程id）"
-            yellow "3. 更换域名再尝试执行脚本"
-            yellow "4. 关闭WARP"
+            yellow "3. 域名触发Acme.sh官方风控，更换域名或等待7天后再尝试执行脚本"
             exit 0
         fi
     fi
 }
 
 function acme(){   
-    green "正在安装依赖及acme.sh……"
-    [[ $(type -P yum) ]] && yumapt='yum -y' || yumapt='apt -y'
-    [[ $(type -P curl) ]] || $yumapt update;$yumapt install curl
-    [[ $(type -P socat) ]] || $yumapt install socat
-    [[ $(type -P binutils) ]] || $yumapt install binutils
+    green "正在安装acme.sh及其依赖......"
+    ${PACKAGE_UPDATE[int]}
+    ${PACKAGE_INSTALL[int]} curl wget socat binutils
     v6=`curl -s6m2 https://ip.gs`
     v4=`curl -s4m2 https://ip.gs`
     if [ -z $v4 ]; then
         echo -e "nameserver 2001:67c:2b0::4\nnameserver 2001:67c:2b0::6" > /etc/resolv.conf
+        yellow "检测到你的VPS为IPV6 Only，已为你自动设置DNS64服务器以确保Acme.sh正常申请证书"
     fi
     read -p "请输入注册邮箱（例：admin@bilibili.com，或留空自动生成）：" acmeEmail
     if [ -z $acmeEmail ]; then
-        autoEmail=`head -n 20 /dev/urandom | sed 's/[^a-z]//g' | strings -n 4 | tr '[:upper:]' '[:lower:]' | head -1`
-        acmeEmail=$autoEmail@gmail.com
-        yellow "检测到你未输入邮箱，脚本已为你自动生成一个邮箱：$acmeEmail"
+        autoEmail=`date +%s%N |md5sum | cut -c 1-32`
+        acmeEmail=$autoEmail@autossl.com
+        yellow "检测到未输入邮箱，脚本已为你自动生成一个邮箱以完成接下来的注册流程，邮箱地址为$acmeEmail"
     fi
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
@@ -82,22 +80,22 @@ function acme(){
     domainIP=$(curl -s ipget.net/?ip="$domain")
         if [[ $domainIP = $v4 ]]; then
             yellow "当前域名解析的IPV4：$domainIP" && sleep 1
-            bash /root/.acme.sh/acme.sh  --issue -d ${domain} --standalone -k ec-256 --server letsencrypt
+            bash /root/.acme.sh/acme.sh  --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --force
         fi
         if [[ $domainIP = $v6 ]]; then
             yellow "当前域名解析的IPV6：$domainIP" && sleep 1
-            bash /root/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --listen-v6
+            bash /root/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --force --listen-v6
         fi
         if [[ -n $(echo $domainIP | grep nginx) ]]; then
-            yellow "域名解析无效，请检查域名是否填写正确或等待解析完成再执行脚本"
+            yellow "域名解析无效，请检查域名是否填写正确或等待域名解析完成再执行脚本"
             exit 0
         elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
             if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
-            red "当前域名解析的IP与VPS的IP不匹配"
-            green "建议如下："
-            yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)"
-            yellow "2、请检查域名解析网站设置的IP是否正确"
-            exit 0
+                red "当前域名解析的IP与VPS的IP不匹配"
+                green "建议如下："
+                yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)"
+                yellow "2、请检查域名解析网站设置的IP是否正确"
+                exit 0
             fi
         fi
         else
@@ -139,6 +137,7 @@ function acmerenew(){
     bash /root/.acme.sh/acme.sh --list
     read -p "请输入要续期的域名证书（复制Main_Domain下显示的域名）:" domain
     if [[ -n $(bash /root/.acme.sh/acme.sh --list | grep $domain) ]]; then
+        checkwarp
         bash /root/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
         checktls
         exit 0
@@ -146,6 +145,10 @@ function acmerenew(){
         red "未找到你输入的${domain}域名证书，请再次检查域名输入正确"
         exit 0
     fi
+}
+
+function upgrade(){
+    wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme-1key@master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
 }
 
 function menu(){
@@ -162,6 +165,7 @@ function menu(){
     green "1. 申请证书（自动识别单域名与泛域名）"
     green "2. 查询、撤销并删除当前已申请的域名证书"
     green "3. 手动续期域名证书"
+    green "4. 更新脚本"
     green "0. 退出"
     echo "         "
     read -p "请输入数字:" NumberInput
@@ -169,6 +173,7 @@ function menu(){
         1 ) acme;;
         2 ) certificate;;
         3 ) acmerenew;;
+        4 ) upgrade ;;
         0 ) exit 0    
     esac
 }
