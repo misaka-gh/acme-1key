@@ -51,9 +51,9 @@ checktls() {
 }
 
 acme() {
-	[[ -z $(type -P curl) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
-	[[ -z $(type -P wget) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} wget
-	[[ -z $(type -P socat) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} socat
+	[[ $(type -P curl) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
+	[[ $(type -P wget) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} wget
+	[[ $(type -P socat) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} socat
 	[[ -n $(wg 2>/dev/null) ]] && wg-quick down wgcf && yellow "已检测WARP状态打开，为你自动关闭WARP以保证证书申请"
 	v6=$(curl -s6m8 https://ip.gs)
 	v4=$(curl -s4m8 https://ip.gs)
@@ -142,7 +142,7 @@ uninstall() {
 }
 
 upgrade() {
-	wget -N https://gitlab.com/misakano7545/acme-1key/-/raw/master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
+	wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme-1key@master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
 }
 
 menu() {
