@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 REGEX=("debian" "ubuntu" "centos|red hat|kernel|oracle linux|alma|rocky" "'amazon linux'" "alpine")
 RELEASE=("Debian" "Ubuntu" "CentOS" "CentOS" "Alpine")
@@ -29,7 +29,7 @@ for ((int = 0; int < ${#REGEX[@]}; int++)); do
 	[[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && [[ -n $SYSTEM ]] && break
 done
 
-[[ -z $SYSTEM ]] && red "不支持VPS的当前系统，请使用主流操作系统" && exit 1
+[[ -z $SYSTEM ]] && red "不支持当前VPS的系统，请使用主流操作系统" && exit 1
 
 checktls() {
 	if [[ -f /root/cert.crt && -f /root/private.key ]]; then
@@ -41,23 +41,24 @@ checktls() {
 		else
 			red "抱歉，证书申请失败"
 			green "建议如下："
-			yellow "1. 检测防火墙是否打开"
-			yellow "2. 检查80端口是否被占用（先lsof -i :80 后kill -9 进程id）"
+			yellow "1. 检测防火墙是否打开，如打开请关闭防火墙或放行80端口"
+			yellow "2. 检查80端口是否开放或占用"
 			yellow "3. 域名触发Acme.sh官方风控，更换域名或等待7天后再尝试执行脚本"
+			yellow "4. 脚本可能跟不上时代，建议截图发布到TG群询问"
 			exit 1
 		fi
 	fi
 }
 
 acme() {
-	green "正在安装acme.sh及其依赖......"
-	${PACKAGE_UPDATE[int]}
-	${PACKAGE_INSTALL[int]} curl wget socat binutils
-	[[ -n $(wg 2>/dev/null) ]] && wg-quick down wgcf && yellow "目前VPS已开启WARP，已为你自动关闭WARP以确保证书申请正常"
+	[[ -z $(type -P curl) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
+	[[ -z $(type -P wget) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} wget
+	[[ -z $(type -P socat) ]] ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} socat
+	[[ -n $(wg 2>/dev/null) ]] && wg-quick down wgcf && yellow "已检测WARP状态打开，为你自动关闭WARP以保证证书申请"
 	v6=$(curl -s6m8 https://ip.gs)
 	v4=$(curl -s4m8 https://ip.gs)
 	[[ -z $v4 ]] && echo -e nameserver 2a01:4f8:c2c:123f::1 > /etc/resolv.conf
-	read -p "请输入注册邮箱（例：admin@bilibili.com，或留空自动生成）：" acmeEmail
+	read -p "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
 	[ -z $acmeEmail ] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
 	[[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && curl https://get.acme.sh | sh -s email=$acmeEmail && source ~/.bashrc && bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
 	read -p "请输入解析完成的域名:" domain
@@ -80,14 +81,14 @@ acme() {
 				red "当前域名解析的IP与VPS的IP不匹配"
 				green "建议如下："
 				yellow "1、请确保Cloudflare小云朵为关闭状态(仅限DNS)"
-				yellow "2、请检查域名解析网站设置的IP是否正确"
+				yellow "2、请检查DNS解析设置的IP是否为VPS的IP"
 				exit 1
 			fi
 		fi
 	else
-		read -p "当前为泛域名申请证书，请输入Cloudflare Global API Key:" GAK
+		read -p "当前为泛域名申请证书，请输入CloudFlare Global API Key:" GAK
 		export CF_Key="$GAK"
-		read -p "当前为泛域名申请证书，请输入Cloudflare登录邮箱：" CFemail
+		read -p "当前为泛域名申请证书，请输入CloudFlare登录邮箱：" CFemail
 		export CF_Email="$CFemail"
 		if [[ $domainIP == $v4 ]]; then
 			yellow "当前泛域名解析的IPV4：$domainIP" && sleep 1
@@ -104,7 +105,7 @@ acme() {
 }
 
 certificate() {
-	[[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh无法执行" && exit 1
+	[[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
 	bash ~/.acme.sh/acme.sh --list
 	read -p "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
 	if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
@@ -119,11 +120,11 @@ certificate() {
 }
 
 acmerenew() {
-	[[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh无法执行" && exit 1
+	[[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
 	bash ~/.acme.sh/acme.sh --list
 	read -p "请输入要续期的域名证书（复制Main_Domain下显示的域名）:" domain
 	if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
-		[[ -n $(wg) ]] && wg-quick down wgcf && yellow "目前VPS已开启WARP，已为你自动关闭WARP以确保证书申请正常"
+		[[ -n $(wg) ]] && wg-quick down wgcf
 		bash ~/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
 		checktls
 		exit 1
@@ -136,6 +137,8 @@ acmerenew() {
 uninstall() {
 	[[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh无法执行" && exit 1
 	~/.acme.sh/acme.sh --uninstall
+	rm -rf ~/.acme.sh
+	rm -f acme1key.sh
 }
 
 upgrade() {
@@ -154,9 +157,9 @@ menu() {
 	red "=================================="
 	echo "                           "
 	green "1. 安装Acme.sh并申请证书"
-	green "2. 查询、撤销并删除当前已申请的域名证书"
+	green "2. 撤销并删除已申请的证书"
 	green "3. 手动续期域名证书"
-	green "4. 卸载Acme.sh"
+	green "4. 卸载Acme.sh证书申请"
 	green "5. 更新脚本"
 	green "0. 退出"
 	echo "         "
@@ -165,7 +168,7 @@ menu() {
 		1) acme ;;
 		2) certificate ;;
 		3) acmerenew ;;
-		4 ) uninstall ;;
+		4) uninstall ;;
 		5) upgrade ;;
 		0) exit 1 ;;
 	esac
