@@ -142,7 +142,7 @@ uninstall() {
 }
 
 upgrade() {
-	wget -N https://cdn.jsdelivr.net/gh/Misaka-blog/acme-1key@master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
+	wget -N https://gitlab.com/misakano7545/acme-1key/-/raw/master/acme1key.sh && chmod -R 777 acme1key.sh && bash acme1key.sh
 }
 
 menu() {
