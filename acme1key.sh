@@ -51,9 +51,9 @@ checktls() {
 }
 
 acme() {
-	[[ $(type -P curl) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
-	[[ $(type -P wget) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} wget
-	[[ $(type -P socat) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} socat
+	[[ -z $(type -P curl) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
+	[[ -z $(type -P wget) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} wget
+	[[ -z $(type -P socat) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} socat
 	[[ -n $(wg 2>/dev/null) ]] && wg-quick down wgcf && yellow "已检测WARP状态打开，为你自动关闭WARP以保证证书申请"
 	v6=$(curl -s6m8 https://ip.gs)
 	v4=$(curl -s4m8 https://ip.gs)
