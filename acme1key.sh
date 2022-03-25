@@ -69,6 +69,7 @@ install_acme(){
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+    green "Acme.sh 域名证书一键申请脚本 已安装成功！"
     back2menu
 }
 
@@ -121,12 +122,32 @@ getDomainCert(){
     export CF_Key="$GAK"
     read -p "请输入登录Cloudflare的注册邮箱地址：" CFemail
     export CF_Email="$CFemail"
-    if [ -z $ipv4 ]; then
+    if [[ -z $ipv4 ]]; then
         bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server letsencrypt --listen-v6
     else
         bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server letsencrypt
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d "*.${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+    checktls
+}
+
+getSingleDomainCert(){
+    [[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    checkwarp
+    adddns64
+    ipv4=$(curl -s4m8 https://ip.gs)
+    ipv6=$(curl -s6m8 https://ip.gs)
+    read -p "请输入需要申请证书的域名：" domain
+    read -p "请复制Cloudflare的Global API Key：" GAK
+    export CF_Key="$GAK"
+    read -p "请输入登录Cloudflare的注册邮箱地址：" CFemail
+    export CF_Email="$CFemail"
+    if [[ -z $ipv4 ]]; then
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server letsencrypt --listen-v6
+    else
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server letsencrypt
+    fi
+    bash ~/.acme.sh/acme.sh --install-cert -d "${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
 }
 
@@ -207,6 +228,7 @@ renew_cert() {
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" $$ exit 1
     if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
         checkwarp
+        adddns64
         bash ~/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
         checktls
         back2menu
@@ -223,6 +245,7 @@ uninstall() {
     sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
     rm -rf ~/.acme.sh
     rm -f acme1key.sh
+    green "Acme.sh 域名证书一键申请脚本 已卸载成功！"
     back2menu
 }
 
@@ -239,20 +262,22 @@ menu() {
     echo "                           "
     green "1. 安装Acme.sh域名证书申请脚本"
     green "2. 申请单域名证书（80端口申请）"
-    green "3. 申请泛域名证书（CF API申请）"
-    green "4. 撤销并删除已申请的证书"
-    green "5. 手动续期域名证书"
-    green "6. 卸载Acme.sh域名证书申请脚本"
+    green "3. 申请单域名证书（CF API申请）"
+    green "4. 申请泛域名证书（CF API申请）"
+    green "5. 撤销并删除已申请的证书"
+    green "6. 手动续期域名证书"
+    green "7. 卸载Acme.sh域名证书申请脚本"
     green "0. 退出"
     echo "         "
     read -p "请输入数字:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
         2) getSingleCert ;;
-        3) getDomainCert ;;
-        4) revoke_cert ;;
-        5) renew_cert ;;
-        6) uninstall ;;
+        3) getSingleDomainCert ;;
+        4) getDomainCert ;;
+        5) revoke_cert ;;
+        6) renew_cert ;;
+        7) uninstall ;;
         *) exit 1 ;;
     esac
 }
