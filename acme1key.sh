@@ -64,16 +64,23 @@ install_acme(){
     [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
     [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
     [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
+    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron
+    [[ -z $(type -P crontab) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} crontab
     read -p "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
     [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+    if [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        green "Acme.sh 安装成功！"
+    else
+        red "Acme.sh 安装失败"
+    fi
     back2menu
 }
 
 getSingleCert(){
-    [[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
     checkwarp
     adddns64
     ipv4=$(curl -s4m8 https://ip.gs)
@@ -111,7 +118,7 @@ getSingleCert(){
 }
 
 getDomainCert(){
-    [[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
     checkwarp
     adddns64
     ipv4=$(curl -s4m8 https://ip.gs)
@@ -134,7 +141,7 @@ getDomainCert(){
 }
 
 getSingleDomainCert(){
-    [[ -z $(~/.acme.sh/acme.sh -v) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
     checkwarp
     adddns64
     ipv4=$(curl -s4m8 https://ip.gs)
