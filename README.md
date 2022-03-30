@@ -31,7 +31,7 @@ wget -N https://raw.githubusercontent.com/Misaka-blog/acme-1key/master/acme1key.
 
 ![image](https://user-images.githubusercontent.com/96560028/160876628-2065d996-c4a0-4c84-8536-2ad5280cc20c.png)
 
-图1: 其代码Commits时间对比
+图1: 其代码和本仓库第一次Commits时间对比
 
 ![image](https://user-images.githubusercontent.com/96560028/160876668-2d594f74-853b-4368-a263-7a3332532593.png)
 
@@ -41,6 +41,7 @@ wget -N https://raw.githubusercontent.com/Misaka-blog/acme-1key/master/acme1key.
 
 ![image](https://user-images.githubusercontent.com/96560028/160877039-df0490b2-25d8-4c2d-a7b4-ddbc1e79398b.png)
 
+希望能看到之后浪子回头。知错能改不是一个大问题。
 
 ## 感谢列表
 
