@@ -25,6 +25,17 @@ wget -N https://raw.githubusercontent.com/Misaka-blog/acme-1key/master/acme1key.
 
 对于国内VPS，极大概率会遇到脚本不可用的问题
 
+对于某抄本脚本的作者，请自行看看谁先做的这个脚本？
+
+![image](https://user-images.githubusercontent.com/96560028/160876628-2065d996-c4a0-4c84-8536-2ad5280cc20c.png)
+
+![image](https://user-images.githubusercontent.com/96560028/160876668-2d594f74-853b-4368-a263-7a3332532593.png)
+
+![image](https://user-images.githubusercontent.com/96560028/160877033-b9a72e3f-ca9e-48c6-8593-685e18a4ed8b.png)
+
+![image](https://user-images.githubusercontent.com/96560028/160877039-df0490b2-25d8-4c2d-a7b4-ddbc1e79398b.png)
+
+
 ## 感谢列表
 
 感谢他们的贡献，让脚本得到进一步完善
