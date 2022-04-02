@@ -64,17 +64,21 @@ install_acme(){
     [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
     [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
     [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
-    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron
-    [[ -z $(type -P crontab) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} crontab
+    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron systemctl enable cron
+    [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
     read -p "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
     [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
     if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
-        green "Acme.sh 安装成功！"
+        green "Acme.sh证书申请脚本安装成功！"
     else
-        red "Acme.sh 安装失败"
+        red "抱歉，Acme.sh证书申请脚本安装失败"
+        green "建议如下："
+        yellow "1. 检查VPS的网络环境，如为IPv6 Only的VPS请自行添加WARP或DNS64以安装Acme.sh"
+        yellow "2. GitHub上游可能出了一些问题，请过一会儿再试"
+        yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
     fi
     back2menu
 }
@@ -207,8 +211,8 @@ checktls() {
             red "抱歉，证书申请失败"
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
-            yellow "2. 在使用CF API申请模式时，如果使用的是Freenom域名，由于CF官方API对Freenom域名限制，暂时不能申请证书"
-            yellow "3. 域名触发Acme.sh官方风控，更换域名或等待7天后再尝试执行脚本"
+            yellow "2. 在使用CF API申请模式时，如果使用Freenom域名，由于API限制，暂时不能使用此方式申请"
+            yellow "3. 同一域名多次申请触发Acme.sh官方风控，请更换域名或等待7天后再尝试执行脚本"
             yellow "4. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
             back2menu
         fi
