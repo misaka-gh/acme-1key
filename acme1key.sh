@@ -1,22 +1,16 @@
 #!/bin/bash
 
 red() {
-	echo -e "\033[31m\033[01m$1\033[0m"
+    echo -e "\033[31m\033[01m$1\033[0m"
 }
 
 green() {
-	echo -e "\033[32m\033[01m$1\033[0m"
+    echo -e "\033[32m\033[01m$1\033[0m"
 }
 
 yellow() {
-	echo -e "\033[33m\033[01m$1\033[0m"
+    echo -e "\033[33m\033[01m$1\033[0m"
 }
-
-RED="\033[31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-BLUE="\033[36m"
-PLAIN='\033[0m'
 
 REGEX=("debian" "ubuntu" "centos|red hat|kernel|oracle linux|alma|rocky" "'amazon linux'")
 RELEASE=("Debian" "Ubuntu" "CentOS" "CentOS")
@@ -29,1692 +23,277 @@ PACKAGE_UNINSTALL=("apt -y autoremove" "apt -y autoremove" "yum -y autoremove" "
 CMD=("$(grep -i pretty_name /etc/os-release 2>/dev/null | cut -d \" -f2)" "$(hostnamectl 2>/dev/null | grep -i system | cut -d : -f2)" "$(lsb_release -sd 2>/dev/null)" "$(grep -i description /etc/lsb-release 2>/dev/null | cut -d \" -f2)" "$(grep . /etc/redhat-release 2>/dev/null)" "$(grep . /etc/issue 2>/dev/null | cut -d \\ -f1 | sed '/^[ ]*$/d')")
 
 for i in "${CMD[@]}"; do
-	SYS="$i" && [[ -n $SYS ]] && break
+    SYS="$i" && [[ -n $SYS ]] && break
 done
 
 for ((int = 0; int < ${#REGEX[@]}; int++)); do
-	[[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && [[ -n $SYSTEM ]] && break
+    [[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && [[ -n $SYSTEM ]] && break
 done
 
 [[ -z $SYSTEM ]] && red "不支持当前VPS系统，请使用主流的操作系统" && exit 1
-[[ -z $(type -P curl) ]] && ${PACKAGE_UPDATE[int]} && ${PACKAGE_INSTALL[int]} curl
 
-SITES=(
-	http://www.zhuizishu.com/
-	http://xs.56dyc.com/
-	http://www.ddxsku.com/
-	http://www.biqu6.com/
-	https://www.wenshulou.cc/
-	http://www.55shuba.com/
-	http://www.39shubao.com/
-	https://www.23xsw.cc/
-	https://www.jueshitangmen.info/
-	https://www.zhetian.org/
-	http://www.bequgexs.com/
-	http://www.tjwl.com/
-)
-
-CONFIG_FILE="/usr/local/etc/xray/config.json"
-
-IP=$(curl -s4m8 ip.sb) || IP=$(curl -s6m8 ip.sb)
-
-BT="false"
-NGINX_CONF_PATH="/etc/nginx/conf.d/"
-res=$(which bt 2>/dev/null)
-[[ "$res" != "" ]] && BT="true" && NGINX_CONF_PATH="/www/server/panel/vhost/nginx/"
-
-VLESS="false"
-TROJAN="false"
-TLS="false"
-WS="false"
-XTLS="false"
-KCP="false"
-
-configNeedNginx() {
-	local ws=$(grep wsSettings $CONFIG_FILE)
-	[[ -z "$ws" ]] && echo no && return
-	echo yes
+adddns64(){
+    ipv4=$(curl -s4m8 https://ip.gs)
+    ipv6=$(curl -s6m8 https://ip.gs)
+    if [[ -z $ipv4 ]]; then
+        echo -e nameserver 2a01:4f8:c2c:123f::1 > /etc/resolv.conf
+        yellow "检测到VPS为IPv6 Only，已自动设置为DNS64服务器"
+    fi
 }
 
-needNginx() {
-	[[ "$WS" == "false" ]] && echo no && return
-	echo yes
+back2menu() {
+    green "所选操作执行完成"
+    read -p "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
+    case "$back2menuInput" in
+        y) exit 1 ;;
+        *) menu ;;
+    esac
 }
 
-status() {
-	[[ ! -f /usr/local/bin/xray ]] && echo 0 && return
-	[[ ! -f $CONFIG_FILE ]] && echo 1 && return
-	port=$(grep port $CONFIG_FILE | head -n 1 | cut -d: -f2 | tr -d \",' ')
-	res=$(ss -nutlp | grep ${port} | grep -i xray)
-	[[ -z "$res" ]] && echo 2 && return
-
-	if [[ $(configNeedNginx) != "yes" ]]; then
-		echo 3
-	else
-		res=$(ss -nutlp | grep -i nginx)
-		if [[ -z "$res" ]]; then
-			echo 4
-		else
-			echo 5
-		fi
-	fi
+checkwarp(){
+    WARPv4Status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+    WARPv6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+    if [[ $WARPv4Status =~ on|plus || $WARPv6Status =~ on|plus ]]; then
+        wg-quick down wgcf >/dev/null 2>&1
+        yellow "检测到Wgcf-WARP已启动，为确保正常申请证书已暂时关闭"
+    fi
 }
 
-statusText() {
-	res=$(status)
-	case $res in
-	2) echo -e ${GREEN}已安装${PLAIN} ${RED}未运行${PLAIN} ;;
-	3) echo -e ${GREEN}已安装${PLAIN} ${GREEN}Xray正在运行${PLAIN} ;;
-	4) echo -e ${GREEN}已安装${PLAIN} ${GREEN}Xray正在运行${PLAIN}, ${RED}Nginx未运行${PLAIN} ;;
-	5) echo -e ${GREEN}已安装${PLAIN} ${GREEN}Xray正在运行, Nginx正在运行${PLAIN} ;;
-	*) echo -e ${RED}未安装${PLAIN} ;;
-	esac
+install_acme(){
+    ${PACKAGE_UPDATE[int]}
+    [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
+    [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
+    [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
+    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron systemctl enable cron
+    [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
+    read -p "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
+    [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
+    curl https://get.acme.sh | sh -s email=$acmeEmail
+    source ~/.bashrc
+    bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+    if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        green "Acme.sh证书申请脚本安装成功！"
+    else
+        red "抱歉，Acme.sh证书申请脚本安装失败"
+        green "建议如下："
+        yellow "1. 检查VPS的网络环境，如为IPv6 Only的VPS请自行添加WARP或DNS64以安装Acme.sh"
+        yellow "2. GitHub上游可能出了一些问题，请过一会儿再试"
+        yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+    fi
+    back2menu
 }
 
-normalizeVersion() {
-	if [ -n "$1" ]; then
-		case "$1" in
-		v*) echo "$1" ;;
-		http*) echo "v1.5.4" ;;
-		*) echo "v$1" ;;
-		esac
-	else
-		echo ""
-	fi
+getSingleCert(){
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
+    checkwarp
+    adddns64
+    ipv4=$(curl -s4m8 https://ip.gs)
+    ipv6=$(curl -s6m8 https://ip.gs)
+    read -p "请输入解析完成的域名:" domain
+    [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
+    green "已输入的域名：$domain" && sleep 1
+    domainIP=$(curl -s ipget.net/?ip="cloudflare.1.1.1.1.$domain")
+    if [[ -n $(echo $domainIP | grep nginx) ]]; then
+        domainIP=$(curl -s ipget.net/?ip="$domain")
+        if [[ $domainIP == $ipv4 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server zerossl
+        fi
+        if [[ $domainIP == $ipv6 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server zerossl --listen-v6
+        fi
+
+        if [[ -n $(echo $domainIP | grep nginx) ]]; then
+            yellow "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本"
+            exit 1
+        elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
+            if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]]; then
+                green "${domain} 解析结果：（$domainIP）"
+                red "当前二级域名解析的IP与当前VPS使用的IP不匹配"
+                green "建议如下："
+                yellow "1. 请确保Cloudflare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
+                yellow "2. 请检查DNS解析设置的IP是否为VPS的IP"
+                yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+                exit 1
+            fi
+        fi
+    fi
+    bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+    checktls
 }
 
-# 1: new Xray. 0: no. 1: yes. 2: not installed. 3: check failed.
-getVersion() {
-	VER=$(/usr/local/bin/xray version 2>/dev/null | head -n1 | awk '{print $2}')
-	RETVAL=$?
-	CUR_VER="$(normalizeVersion "$(echo "$VER" | head -n 1 | cut -d " " -f2)")"
-	TAG_URL="https://api.github.com/repos/XTLS/Xray-core/releases/latest"
-	NEW_VER="$(normalizeVersion "$(curl -s "${TAG_URL}" --connect-timeout 10 | grep 'tag_name' | cut -d\" -f4)")"
-
-	if [[ $? -ne 0 ]] || [[ $NEW_VER == "" ]]; then
-		red " 检查Xray版本信息失败，请检查网络"
-		return 3
-	elif [[ $RETVAL -ne 0 ]]; then
-		return 2
-	elif [[ $NEW_VER != $CUR_VER ]]; then
-		return 1
-	fi
-	return 0
+getDomainCert(){
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
+    checkwarp
+    adddns64
+    ipv4=$(curl -s4m8 https://ip.gs)
+    ipv6=$(curl -s6m8 https://ip.gs)
+    read -p "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
+    [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
+    read -p "请输入Cloudflare Global API Key：" GAK
+    [[ -z $GAK ]] && red "未输入Cloudflare Global API Key，无法执行操作！" && exit 1
+    export CF_Key="$GAK"
+    read -p "请输入Cloudflare的登录邮箱：" CFemail
+    [[ -z $domain ]] && red "未输入Cloudflare的登录邮箱，无法执行操作！" && exit 1
+    export CF_Email="$CFemail"
+    if [[ -z $ipv4 ]]; then
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server zerossl --listen-v6
+    else
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server zerossl
+    fi
+    bash ~/.acme.sh/acme.sh --install-cert -d "*.${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+    checktls
 }
 
-archAffix() {
-	case "$(uname -m)" in
-		i686 | i386) echo '32' ;;
-		x86_64 | amd64) echo '64' ;;
-		armv5tel) echo 'arm32-v5' ;;
-		armv6l) echo 'arm32-v6' ;;
-		armv7 | armv7l) echo 'arm32-v7a' ;;
-		armv8 | aarch64) echo 'arm64-v8a' ;;
-		mips64le) echo 'mips64le' ;;
-		mips64) echo 'mips64' ;;
-		mipsle) echo 'mips32le' ;;
-		mips) echo 'mips32' ;;
-		ppc64le) echo 'ppc64le' ;;
-		ppc64) echo 'ppc64' ;;
-		ppc64le) echo 'ppc64le' ;;
-		riscv64) echo 'riscv64' ;;
-		s390x) echo 's390x' ;;
-		*) red " 不支持的CPU架构！" && exit 1 ;;
-	esac
-
-	return 0
+getSingleDomainCert(){
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
+    checkwarp
+    adddns64
+    ipv4=$(curl -s4m8 https://ip.gs)
+    ipv6=$(curl -s6m8 https://ip.gs)
+    read -p "请输入需要申请证书的域名：" domain
+    read -p "请复制Cloudflare的Global API Key：" GAK
+    [[ -z $GAK ]] && red "未输入Cloudflare Global API Key，无法执行操作！" && exit 1
+    export CF_Key="$GAK"
+    read -p "请输入登录Cloudflare的注册邮箱地址：" CFemail
+    [[ -z $domain ]] && red "未输入Cloudflare的登录邮箱，无法执行操作！" && exit 1
+    export CF_Email="$CFemail"
+    if [[ -z $ipv4 ]]; then
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server zerossl --listen-v6
+    else
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server zerossl
+    fi
+    bash ~/.acme.sh/acme.sh --install-cert -d "${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+    checktls
 }
 
-getData() {
-	if [[ "$TLS" == "true" || "$XTLS" == "true" ]]; then
-		echo ""
-		echo "Xray一键脚本，运行之前请确认如下条件已经具备："
-		yellow " 1. 一个伪装域名"
-		yellow " 2. 伪装域名DNS解析指向当前服务器ip（${IP}）"
-		yellow " 3. 如果/root目录下有 xray.pem 和 xray.key 证书密钥文件，无需理会条件2"
-		echo " "
-		read -p "确认满足以上条件请按y，按其他键退出脚本：" answer
-		[[ "${answer,,}" != "y" ]] && exit 1
-		echo ""
-		while true; do
-			read -p "请输入伪装域名：" DOMAIN
-			if [[ -z "${DOMAIN}" ]]; then
-				red " 域名输入错误，请重新输入！"
-			else
-				break
-			fi
-		done
-		DOMAIN=${DOMAIN,,}
-		yellow "伪装域名(host)：$DOMAIN"
-		echo ""
-		if [[ -f ~/xray.pem && -f ~/xray.key ]]; then
-			yellow "检测到自有证书，将使用自有证书部署"
-			CERT_FILE="/usr/local/etc/xray/${DOMAIN}.pem"
-			KEY_FILE="/usr/local/etc/xray/${DOMAIN}.key"
-		else
-			resolve=$(curl -sm8 ipget.net/?ip=${DOMAIN})
-			if [[ $resolve != $IP ]]; then
-				yellow "${DOMAIN} 解析结果：${resolve}"
-				red "域名未解析到当前服务器IP(${IP})！"
-				green "建议如下："
-				yellow " 1. 请确保Cloudflare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
-				yellow " 2. 请检查DNS解析设置的IP是否为VPS的IP"
-				yellow " 3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
-				exit 1
-			fi
-		fi
-	fi
-	echo ""
-	if [[ "$(needNginx)" == "no" ]]; then
-		if [[ "$TLS" == "true" ]]; then
-			read -p "请输入xray监听端口 [默认443]：" PORT
-			[[ -z "${PORT}" ]] && PORT=443
-		else
-			read -p "请输入xray监听端口 [100-65535的一个数字]：" PORT
-			[[ -z "${PORT}" ]] && PORT=$(shuf -i200-65000 -n1)
-			if [[ "${PORT:0:1}" == "0" ]]; then
-				red "端口不能以0开头"
-				exit 1
-			fi
-		fi
-		yellow "xray端口：$PORT"
-	else
-		read -p "请输入Nginx监听端口[100-65535的一个数字，默认443]：" PORT
-		[[ -z "${PORT}" ]] && PORT=443
-		[ "${PORT:0:1}" = "0" ] && red "端口不能以0开头" && exit 1
-		yellow " Nginx端口：$PORT"
-		XPORT=$(shuf -i10000-65000 -n1)
-	fi
-	if [[ "$KCP" == "true" ]]; then
-		echo ""
-		yellow "请选择伪装类型："
-		echo "   1) 无"
-		echo "   2) BT下载"
-		echo "   3) 视频通话"
-		echo "   4) 微信视频通话"
-		echo "   5) dtls"
-		echo "   6) wiregard"
-		read -p "请选择伪装类型[默认：无]：" answer
-		case $answer in
-		2) HEADER_TYPE="utp" ;;
-		3) HEADER_TYPE="srtp" ;;
-		4) HEADER_TYPE="wechat-video" ;;
-		5) HEADER_TYPE="dtls" ;;
-		6) HEADER_TYPE="wireguard" ;;
-		*) HEADER_TYPE="none" ;;
-		esac
-		yellow "伪装类型：$HEADER_TYPE"
-		SEED=$(cat /proc/sys/kernel/random/uuid)
-	fi
-	if [[ "$TROJAN" == "true" ]]; then
-		echo ""
-		read -p "请设置trojan密码（不输则随机生成）:" PASSWORD
-		[[ -z "$PASSWORD" ]] && PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
-		yellow " trojan密码：$PASSWORD"
-	fi
-	if [[ "$XTLS" == "true" ]]; then
-		echo ""
-		yellow "请选择流控模式:"
-		echo -e "   1) xtls-rprx-direct [$RED推荐$PLAIN]"
-		echo "   2) xtls-rprx-origin"
-		read -p "请选择流控模式[默认:direct]" answer
-		[[ -z "$answer" ]] && answer=1
-		case $answer in
-		1) FLOW="xtls-rprx-direct" ;;
-		2) FLOW="xtls-rprx-origin" ;;
-		*) red "无效选项，使用默认的xtls-rprx-direct" && FLOW="xtls-rprx-direct" ;;
-		esac
-		yellow "流控模式：$FLOW"
-	fi
-	if [[ "${WS}" == "true" ]]; then
-		echo ""
-		while true; do
-			read -p "请输入伪装路径，以/开头(不懂请直接回车)：" WSPATH
-			if [[ -z "${WSPATH}" ]]; then
-				len=$(shuf -i5-12 -n1)
-				ws=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $len | head -n 1)
-				WSPATH="/$ws"
-				break
-			elif [[ "${WSPATH:0:1}" != "/" ]]; then
-				red "伪装路径必须以/开头！"
-			elif [[ "${WSPATH}" == "/" ]]; then
-				red "不能使用根路径！"
-			else
-				break
-			fi
-		done
-		yellow "ws路径：$WSPATH"
-	fi
-	if [[ "$TLS" == "true" || "$XTLS" == "true" ]]; then
-		echo ""
-		yellow "请选择伪装站类型:"
-		echo "   1) 静态网站(位于/usr/share/nginx/html)"
-		echo "   2) 小说站(随机选择)"
-		echo "   3) 高清壁纸站(https://bing.ioliu.cn)"
-		echo "   4) 自定义反代站点(需以http或者https开头)"
-		read -p "请选择伪装网站类型 [默认:高清壁纸站]：" answer
-		if [[ -z "$answer" ]]; then
-			PROXY_URL="https://bing.ioliu.cn"
-		else
-			case $answer in
-			1) PROXY_URL="" ;;
-			2)
-				len=${#SITES[@]}
-				((len--))
-				while true; do
-					index=$(shuf -i0-${len} -n1)
-					PROXY_URL=${SITES[$index]}
-					host=$(echo ${PROXY_URL} | cut -d/ -f3)
-					ip=$(curl -sm8 ipget.net/?ip=${host})
-					res=$(echo -n ${ip} | grep ${host})
-					if [[ "${res}" == "" ]]; then
-						echo "$ip $host" >>/etc/hosts
-						break
-					fi
-				done
-				;;
-			3) PROXY_URL="https://bing.ioliu.cn" ;;
-			4)
-				read -p "请输入反代站点(以http或者https开头)：" PROXY_URL
-				if [[ -z "$PROXY_URL" ]]; then
-					red "请输入反代网站！"
-					exit 1
-				elif [[ "${PROXY_URL:0:4}" != "http" ]]; then
-					red "反代网站必须以http或https开头！"
-					exit 1
-				fi
-				;;
-			*) red "请输入正确的选项！" && exit 1 ;;
-			esac
-		fi
-		REMOTE_HOST=$(echo ${PROXY_URL} | cut -d/ -f3)
-		yellow "伪装网站：$PROXY_URL"
-		echo ""
-		yellow "是否允许搜索引擎爬取网站？[默认：不允许]"
-		echo "   y)允许，会有更多ip请求网站，但会消耗一些流量，vps流量充足情况下推荐使用"
-		echo "   n)不允许，爬虫不会访问网站，访问ip比较单一，但能节省vps流量"
-		read -p "请选择：[y/n]" answer
-		if [[ -z "$answer" ]]; then
-			ALLOW_SPIDER="n"
-		elif [[ "${answer,,}" == "y" ]]; then
-			ALLOW_SPIDER="y"
-		else
-			ALLOW_SPIDER="n"
-		fi
-		yellow "允许搜索引擎：$ALLOW_SPIDER"
-	fi
-	echo ""
-	read -p "是否安装BBR(默认安装)?[y/n]:" NEED_BBR
-	[[ -z "$NEED_BBR" ]] && NEED_BBR=y
-	[[ "$NEED_BBR" == "Y" ]] && NEED_BBR=y
-	yellow "安装BBR：$NEED_BBR"
+checktls() {
+    if [[ -f /root/cert.crt && -f /root/private.key ]]; then
+        if [[ -s /root/cert.crt && -s /root/private.key ]]; then
+            sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
+            echo "0 0 * * * root bash /root/.acme.sh/acme.sh --cron -f >/dev/null 2>&1" >> /etc/crontab
+            if [[ -n $(type -P wgcf) ]]; then
+                yellow "正在启动 Wgcf-WARP"
+                wg-quick up wgcf >/dev/null 2>&1
+                WgcfWARP4Status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                WgcfWARP6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                until [[ $WgcfWARP4Status =~ on|plus ]] || [[ $WgcfWARP6Status =~ on|plus ]]; do
+                    red "无法启动Wgcf-WARP，正在尝试重启"
+                    wg-quick down wgcf >/dev/null 2>&1
+                    wg-quick up wgcf >/dev/null 2>&1
+                    WgcfWARP4Status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                    WgcfWARP6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                    sleep 8
+                done
+                systemctl enable wg-quick@wgcf >/dev/null 2>&1
+                green "Wgcf-WARP 已启动成功"
+            fi
+            green "证书申请成功！脚本申请到的证书（cert.crt）和私钥（private.key）已保存到 /root 文件夹"
+            yellow "证书crt路径如下：/root/cert.crt"
+            yellow "私钥key路径如下：/root/private.key"
+            back2menu
+        else
+            if [[ -n $(type -P wgcf) ]]; then
+                yellow "正在启动 Wgcf-WARP"
+                wg-quick up wgcf >/dev/null 2>&1
+                WgcfWARP4Status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                WgcfWARP6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                until [[ $WgcfWARP4Status =~ on|plus ]] || [[ $WgcfWARP6Status =~ on|plus ]]; do
+                    red "无法启动Wgcf-WARP，正在尝试重启"
+                    wg-quick down wgcf >/dev/null 2>&1
+                    wg-quick up wgcf >/dev/null 2>&1
+                    WgcfWARP4Status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                    WgcfWARP6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+                    sleep 8
+                done
+                systemctl enable wg-quick@wgcf >/dev/null 2>&1
+                green "Wgcf-WARP 已启动成功"
+            fi
+            red "抱歉，证书申请失败"
+            green "建议如下："
+            yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
+            yellow "2. 在使用CF API申请模式时，如果使用Freenom域名，由于API限制，暂时不能使用此方式申请"
+            yellow "3. 同一域名多次申请触发Acme.sh官方风控，请更换域名或等待7天后再尝试执行脚本"
+            yellow "4. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+            back2menu
+        fi
+    fi
 }
 
-installNginx() {
-	echo ""
-	yellow "正在安装nginx..."
-	if [[ "$BT" == "false" ]]; then
-		if [[ $SYSTEM == "CentOS" ]]; then
-			${PACKAGE_INSTALL[int]} epel-release
-			if [[ "$?" != "0" ]]; then
-				echo '[nginx-stable]
-name=nginx stable repo
-baseurl=http://nginx.org/packages/centos/$releasever/$basearch/
-gpgcheck=1
-enabled=1
-gpgkey=https://nginx.org/keys/nginx_signing.key
-module_hotfixes=true' >/etc/yum.repos.d/nginx.repo
-			fi
-		fi
-		${PACKAGE_INSTALL[int]} nginx
-		if [[ "$?" != "0" ]]; then
-			red "Nginx安装失败！"
-			green "建议如下："
-			yellow "1. 检查VPS系统的网络设置和软件源设置，强烈建议使用系统官方软件源！"
-			yellow "2. 你可能用的是CentOS 8操作系统，请重置系统为CentOS 7后再安装本脚本"
-			yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
-			exit 1
-		fi
-		systemctl enable nginx
-	else
-		res=$(which nginx 2>/dev/null)
-		if [[ "$?" != "0" ]]; then
-			red "您安装了宝塔，请在宝塔后台安装nginx后再运行本脚本"
-			exit 1
-		fi
-	fi
+revoke_cert() {
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    bash ~/.acme.sh/acme.sh --list
+    read -p "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
+    [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
+    if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
+        bash ~/.acme.sh/acme.sh --revoke -d ${domain} --ecc
+        bash ~/.acme.sh/acme.sh --remove -d ${domain} --ecc
+        rm -rf ~/.acme.sh/${domain}_ecc
+        green "撤销${domain}的域名证书成功"
+        back2menu
+    else
+        red "未找到你输入的${domain}域名证书，请自行检查！"
+        back2menu
+    fi
 }
 
-startNginx() {
-	if [[ "$BT" == "false" ]]; then
-		systemctl start nginx
-	else
-		nginx -c /www/server/nginx/conf/nginx.conf
-	fi
-}
-
-stopNginx() {
-	if [[ "$BT" == "false" ]]; then
-		systemctl stop nginx
-	else
-		res=$(ps aux | grep -i nginx)
-		if [[ "$res" != "" ]]; then
-			nginx -s stop
-		fi
-	fi
-}
-
-getCert() {
-	mkdir -p /usr/local/etc/xray
-	if [[ -z ${CERT_FILE+x} ]]; then
-		stopNginx
-		systemctl stop xray
-		res=$(netstat -ntlp | grep -E ':80 |:443 ')
-		if [[ "${res}" != "" ]]; then
-			red "其他进程占用了80或443端口，请先关闭再运行一键脚本"
-			echo " 端口占用信息如下："
-			echo ${res}
-			exit 1
-		fi
-		${PACKAGE_INSTALL[int]} socat openssl
-		if [[ "$PMT" == "yum" ]]; then
-			${PACKAGE_INSTALL[int]} cronie
-			systemctl start crond
-			systemctl enable crond
-		else
-			${PACKAGE_INSTALL[int]} cron
-			systemctl start cron
-			systemctl enable cron
-		fi
-		curl -sL https://get.acme.sh | sh -s email=hijk.pw@protonmail.sh
-		source ~/.bashrc
-		~/.acme.sh/acme.sh --upgrade --auto-upgrade
-		~/.acme.sh/acme.sh --set-default-ca --server zerossl
-		if [[ $BT == "false" ]]; then
-			if [[ -n $(curl -sm8 ip.sb | grep ":") ]]; then
-				~/.acme.sh/acme.sh --issue -d $DOMAIN --keylength ec-256 --pre-hook "systemctl stop nginx" --post-hook "systemctl restart nginx" --standalone --listen-v6
-			else
-				~/.acme.sh/acme.sh --issue -d $DOMAIN --keylength ec-256 --pre-hook "systemctl stop nginx" --post-hook "systemctl restart nginx" --standalone
-			fi
-		else
-			if [[ -n $(curl -sm8 ip.sb | grep ":") ]]; then
-				~/.acme.sh/acme.sh --issue -d $DOMAIN --keylength ec-256 --pre-hook "nginx -s stop || { echo -n ''; }" --post-hook "nginx -c /www/server/nginx/conf/nginx.conf || { echo -n ''; }" --standalone --listen-v6
-			else
-				~/.acme.sh/acme.sh --issue -d $DOMAIN --keylength ec-256 --pre-hook "nginx -s stop || { echo -n ''; }" --post-hook "nginx -c /www/server/nginx/conf/nginx.conf || { echo -n ''; }" --standalone
-			fi
-		fi
-		[[ -f ~/.acme.sh/${DOMAIN}_ecc/ca.cer ]] || {
-			red "抱歉，证书申请失败"
-			green "建议如下："
-			yellow " 1. 自行检测防火墙是否打开，如防火墙正在开启，请关闭防火墙或放行80端口"
-			yellow " 2. 同一域名多次申请触发Acme.sh官方风控，请更换域名或等待7天后再尝试执行脚本"
-			yellow " 3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
-			exit 1
-		}
-		CERT_FILE="/usr/local/etc/xray/${DOMAIN}.pem"
-		KEY_FILE="/usr/local/etc/xray/${DOMAIN}.key"
-		~/.acme.sh/acme.sh --install-cert -d $DOMAIN --ecc \
-		--key-file $KEY_FILE \
-		--fullchain-file $CERT_FILE \
-		--reloadcmd "service nginx force-reload"
-		[[ -f $CERT_FILE && -f $KEY_FILE ]] || {
-			red "抱歉，证书申请失败"
-			green "建议如下："
-			yellow " 1. 自行检测防火墙是否打开，如防火墙正在开启，请关闭防火墙或放行80端口"
-			yellow " 2. 同一域名多次申请触发Acme.sh官方风控，请更换域名或等待7天后再尝试执行脚本"
-			yellow " 3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
-			exit 1
-		}
-	else
-		cp ~/xray.pem /usr/local/etc/xray/${DOMAIN}.pem
-		cp ~/xray.key /usr/local/etc/xray/${DOMAIN}.key
-	fi
-}
-
-configNginx() {
-	mkdir -p /usr/share/nginx/html
-	if [[ "$ALLOW_SPIDER" == "n" ]]; then
-		echo 'User-Agent: *' >/usr/share/nginx/html/robots.txt
-		echo 'Disallow: /' >>/usr/share/nginx/html/robots.txt
-		ROBOT_CONFIG="    location = /robots.txt {}"
-	else
-		ROBOT_CONFIG=""
-	fi
-
-	if [[ "$BT" == "false" ]]; then
-		if [[ ! -f /etc/nginx/nginx.conf.bak ]]; then
-			mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
-		fi
-		res=$(id nginx 2>/dev/null)
-		if [[ "$?" != "0" ]]; then
-			user="www-data"
-		else
-			user="nginx"
-		fi
-		cat >/etc/nginx/nginx.conf <<-EOF
-			user $user;
-			worker_processes auto;
-			error_log /var/log/nginx/error.log;
-			pid /run/nginx.pid;
-			
-			# Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
-			include /usr/share/nginx/modules/*.conf;
-			
-			events {
-			    worker_connections 1024;
-			}
-			
-			http {
-			    log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
-			                      '\$status \$body_bytes_sent "\$http_referer" '
-			                      '"\$http_user_agent" "\$http_x_forwarded_for"';
-			
-			    access_log  /var/log/nginx/access.log  main;
-			    server_tokens off;
-			
-			    sendfile            on;
-			    tcp_nopush          on;
-			    tcp_nodelay         on;
-			    keepalive_timeout   65;
-			    types_hash_max_size 2048;
-			    gzip                on;
-			
-			    include             /etc/nginx/mime.types;
-			    default_type        application/octet-stream;
-			
-			    # Load modular configuration files from the /etc/nginx/conf.d directory.
-			    # See http://nginx.org/en/docs/ngx_core_module.html#include
-			    # for more information.
-			    include /etc/nginx/conf.d/*.conf;
-			}
-		EOF
-	fi
-
-	if [[ "$PROXY_URL" == "" ]]; then
-		action=""
-	else
-		action="proxy_ssl_server_name on;
-        proxy_pass $PROXY_URL;
-        proxy_set_header Accept-Encoding '';
-        sub_filter \"$REMOTE_HOST\" \"$DOMAIN\";
-        sub_filter_once off;"
-	fi
-
-	if [[ "$TLS" == "true" || "$XTLS" == "true" ]]; then
-		mkdir -p ${NGINX_CONF_PATH}
-		# VMESS+WS+TLS
-		# VLESS+WS+TLS
-		if [[ "$WS" == "true" ]]; then
-			cat >${NGINX_CONF_PATH}${DOMAIN}.conf <<-EOF
-				server {
-				    listen 80;
-				    listen [::]:80;
-				    server_name ${DOMAIN};
-				    return 301 https://\$server_name:${PORT}\$request_uri;
-				}
-				
-				server {
-				    listen       ${PORT} ssl http2;
-				    listen       [::]:${PORT} ssl http2;
-				    server_name ${DOMAIN};
-				    charset utf-8;
-				
-				    # ssl配置
-				    ssl_protocols TLSv1.1 TLSv1.2;
-				    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;
-				    ssl_ecdh_curve secp384r1;
-				    ssl_prefer_server_ciphers on;
-				    ssl_session_cache shared:SSL:10m;
-				    ssl_session_timeout 10m;
-				    ssl_session_tickets off;
-				    ssl_certificate $CERT_FILE;
-				    ssl_certificate_key $KEY_FILE;
-				
-				    root /usr/share/nginx/html;
-				    location / {
-				        $action
-				    }
-				    $ROBOT_CONFIG
-				
-				    location ${WSPATH} {
-				      proxy_redirect off;
-				      proxy_pass http://127.0.0.1:${XPORT};
-				      proxy_http_version 1.1;
-				      proxy_set_header Upgrade \$http_upgrade;
-				      proxy_set_header Connection "upgrade";
-				      proxy_set_header Host \$host;
-				      proxy_set_header X-Real-IP \$remote_addr;
-				      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-				    }
-				}
-			EOF
-		else
-			# VLESS+TCP+TLS
-			# VLESS+TCP+XTLS
-			# trojan
-			cat >${NGINX_CONF_PATH}${DOMAIN}.conf <<-EOF
-				server {
-				    listen 80;
-				    listen [::]:80;
-				    listen 81 http2;
-				    server_name ${DOMAIN};
-				    root /usr/share/nginx/html;
-				    location / {
-				        $action
-				    }
-				    $ROBOT_CONFIG
-				}
-			EOF
-		fi
-	fi
-}
-
-setSelinux() {
-	if [[ -s /etc/selinux/config ]] && grep 'SELINUX=enforcing' /etc/selinux/config; then
-		sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
-		setenforce 0
-	fi
-}
-
-setFirewall() {
-	res=$(which firewall-cmd 2>/dev/null)
-	if [[ $? -eq 0 ]]; then
-		systemctl status firewalld >/dev/null 2>&1
-		if [[ $? -eq 0 ]]; then
-			firewall-cmd --permanent --add-service=http
-			firewall-cmd --permanent --add-service=https
-			if [[ "$PORT" != "443" ]]; then
-				firewall-cmd --permanent --add-port=${PORT}/tcp
-				firewall-cmd --permanent --add-port=${PORT}/udp
-			fi
-			firewall-cmd --reload
-		else
-			nl=$(iptables -nL | nl | grep FORWARD | awk '{print $1}')
-			if [[ "$nl" != "3" ]]; then
-				iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-				iptables -I INPUT -p tcp --dport 443 -j ACCEPT
-				if [[ "$PORT" != "443" ]]; then
-					iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT
-					iptables -I INPUT -p udp --dport ${PORT} -j ACCEPT
-				fi
-			fi
-		fi
-	else
-		res=$(which iptables 2>/dev/null)
-		if [[ $? -eq 0 ]]; then
-			nl=$(iptables -nL | nl | grep FORWARD | awk '{print $1}')
-			if [[ "$nl" != "3" ]]; then
-				iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-				iptables -I INPUT -p tcp --dport 443 -j ACCEPT
-				if [[ "$PORT" != "443" ]]; then
-					iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT
-					iptables -I INPUT -p udp --dport ${PORT} -j ACCEPT
-				fi
-			fi
-		else
-			res=$(which ufw 2>/dev/null)
-			if [[ $? -eq 0 ]]; then
-				res=$(ufw status | grep -i inactive)
-				if [[ "$res" == "" ]]; then
-					ufw allow http/tcp
-					ufw allow https/tcp
-					if [[ "$PORT" != "443" ]]; then
-						ufw allow ${PORT}/tcp
-						ufw allow ${PORT}/udp
-					fi
-				fi
-			fi
-		fi
-	fi
-}
-
-installBBR() {
-	if [[ "$NEED_BBR" != "y" ]]; then
-		INSTALL_BBR=false
-		return
-	fi
-	result=$(lsmod | grep bbr)
-	if [[ "$result" != "" ]]; then
-		yellow " BBR模块已安装"
-		INSTALL_BBR=false
-		return
-	fi
-	res=$(systemd-detect-virt)
-	if [[ $res =~ lxc|openvz ]]; then
-		yellow " 由于你的VPS为OpenVZ或LXC架构的VPS，跳过安装"
-		INSTALL_BBR=false
-		return
-	fi
-	echo "net.core.default_qdisc=fq" >>/etc/sysctl.conf
-	echo "net.ipv4.tcp_congestion_control=bbr" >>/etc/sysctl.conf
-	sysctl -p
-	result=$(lsmod | grep bbr)
-	if [[ "$result" != "" ]]; then
-		green " BBR模块已启用"
-		INSTALL_BBR=false
-		return
-	fi
-	yellow " 安装BBR模块..."
-	if [[ "$PMT" == "yum" ]]; then
-		if [[ "$V6_PROXY" == "" ]]; then
-			rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
-			rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-4.el7.elrepo.noarch.rpm
-			${PACKAGE_INSTALL[int]} --enablerepo=elrepo-kernel kernel-ml
-			${PACKAGE_UNINSTALL[int]} kernel-3.*
-			grub2-set-default 0
-			echo "tcp_bbr" >>/etc/modules-load.d/modules.conf
-			INSTALL_BBR=true
-		fi
-	else
-		${PACKAGE_INSTALL[int]} --install-recommends linux-generic-hwe-16.04
-		grub-set-default 0
-		echo "tcp_bbr" >>/etc/modules-load.d/modules.conf
-		INSTALL_BBR=true
-	fi
-}
-
-installXray() {
-	rm -rf /tmp/xray
-	mkdir -p /tmp/xray
-	DOWNLOAD_LINK="https://github.com/XTLS/Xray-core/releases/download/${NEW_VER}/Xray-linux-$(archAffix).zip"
-	yellow "正在下载Xray文件"
-	curl -L -H "Cache-Control: no-cache" -o /tmp/xray/xray.zip ${DOWNLOAD_LINK}
-	if [ $? != 0 ]; then
-		red "下载Xray文件失败，请检查服务器网络设置"
-		exit 1
-	fi
-	systemctl stop xray
-	mkdir -p /usr/local/etc/xray /usr/local/share/xray && \
-	unzip /tmp/xray/xray.zip -d /tmp/xray
-	cp /tmp/xray/xray /usr/local/bin
-	cp /tmp/xray/geo* /usr/local/share/xray
-	chmod +x /usr/local/bin/xray || {
-		red "Xray安装失败"
-		exit 1
-	}
-
-	cat >/etc/systemd/system/xray.service <<-EOF
-		[Unit]
-		Description=Xray Service
-		Documentation=https://github.com/xtls
-		After=network.target nss-lookup.target
-		
-		[Service]
-		User=root
-		#User=nobody
-		#CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-		#AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-		NoNewPrivileges=true
-		ExecStart=/usr/local/bin/xray run -config /usr/local/etc/xray/config.json
-		Restart=on-failure
-		RestartPreventExitStatus=23
-		
-		[Install]
-		WantedBy=multi-user.target
-	EOF
-	systemctl daemon-reload
-	systemctl enable xray.service
-}
-
-trojanConfig() {
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "trojan",
-		    "settings": {
-		      "clients": [
-		        {
-		          "password": "$PASSWORD"
-		        }
-		      ],
-		      "fallbacks": [
-		        {
-		              "alpn": "http/1.1",
-		              "dest": 80
-		          },
-		          {
-		              "alpn": "h2",
-		              "dest": 81
-		          }
-		      ]
-		    },
-		    "streamSettings": {
-		        "network": "tcp",
-		        "security": "tls",
-		        "tlsSettings": {
-		            "serverName": "$DOMAIN",
-		            "alpn": ["http/1.1", "h2"],
-		            "certificates": [
-		                {
-		                    "certificateFile": "$CERT_FILE",
-		                    "keyFile": "$KEY_FILE"
-		                }
-		            ]
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-trojanXTLSConfig() {
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "trojan",
-		    "settings": {
-		      "clients": [
-		        {
-		          "password": "$PASSWORD",
-		          "flow": "$FLOW"
-		        }
-		      ],
-		      "fallbacks": [
-		        {
-		              "alpn": "http/1.1",
-		              "dest": 80
-		          },
-		          {
-		              "alpn": "h2",
-		              "dest": 81
-		          }
-		      ]
-		    },
-		    "streamSettings": {
-		        "network": "tcp",
-		        "security": "xtls",
-		        "xtlsSettings": {
-		            "serverName": "$DOMAIN",
-		            "alpn": ["http/1.1", "h2"],
-		            "certificates": [
-		                {
-		                    "certificateFile": "$CERT_FILE",
-		                    "keyFile": "$KEY_FILE"
-		                }
-		            ]
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vmessConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vmess",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 1,
-		          "alterId": 0
-		        }
-		      ]
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vmessKCPConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vmess",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 1,
-		          "alterId": 0
-		        }
-		      ]
-		    },
-		    "streamSettings": {
-		        "network": "mkcp",
-		        "kcpSettings": {
-		            "uplinkCapacity": 100,
-		            "downlinkCapacity": 100,
-		            "congestion": true,
-		            "header": {
-		                "type": "$HEADER_TYPE"
-		            },
-		            "seed": "$SEED"
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vmessTLSConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vmess",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 1,
-		          "alterId": 0
-		        }
-		      ],
-		      "disableInsecureEncryption": false
-		    },
-		    "streamSettings": {
-		        "network": "tcp",
-		        "security": "tls",
-		        "tlsSettings": {
-		            "serverName": "$DOMAIN",
-		            "alpn": ["http/1.1", "h2"],
-		            "certificates": [
-		                {
-		                    "certificateFile": "$CERT_FILE",
-		                    "keyFile": "$KEY_FILE"
-		                }
-		            ]
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vmessWSConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $XPORT,
-		    "listen": "127.0.0.1",
-		    "protocol": "vmess",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 1,
-		          "alterId": 0
-		        }
-		      ],
-		      "disableInsecureEncryption": false
-		    },
-		    "streamSettings": {
-		        "network": "ws",
-		        "wsSettings": {
-		            "path": "$WSPATH",
-		            "headers": {
-		                "Host": "$DOMAIN"
-		            }
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vlessTLSConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vless",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 0
-		        }
-		      ],
-		      "decryption": "none",
-		      "fallbacks": [
-		          {
-		              "alpn": "http/1.1",
-		              "dest": 80
-		          },
-		          {
-		              "alpn": "h2",
-		              "dest": 81
-		          }
-		      ]
-		    },
-		    "streamSettings": {
-		        "network": "tcp",
-		        "security": "tls",
-		        "tlsSettings": {
-		            "serverName": "$DOMAIN",
-		            "alpn": ["http/1.1", "h2"],
-		            "certificates": [
-		                {
-		                    "certificateFile": "$CERT_FILE",
-		                    "keyFile": "$KEY_FILE"
-		                }
-		            ]
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vlessXTLSConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vless",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "flow": "$FLOW",
-		          "level": 0
-		        }
-		      ],
-		      "decryption": "none",
-		      "fallbacks": [
-		          {
-		              "alpn": "http/1.1",
-		              "dest": 80
-		          },
-		          {
-		              "alpn": "h2",
-		              "dest": 81
-		          }
-		      ]
-		    },
-		    "streamSettings": {
-		        "network": "tcp",
-		        "security": "xtls",
-		        "xtlsSettings": {
-		            "serverName": "$DOMAIN",
-		            "alpn": ["http/1.1", "h2"],
-		            "certificates": [
-		                {
-		                    "certificateFile": "$CERT_FILE",
-		                    "keyFile": "$KEY_FILE"
-		                }
-		            ]
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vlessWSConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $XPORT,
-		    "listen": "127.0.0.1",
-		    "protocol": "vless",
-		    "settings": {
-		        "clients": [
-		            {
-		                "id": "$uuid",
-		                "level": 0
-		            }
-		        ],
-		        "decryption": "none"
-		    },
-		    "streamSettings": {
-		        "network": "ws",
-		        "security": "none",
-		        "wsSettings": {
-		            "path": "$WSPATH",
-		            "headers": {
-		                "Host": "$DOMAIN"
-		            }
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-vlessKCPConfig() {
-	local uuid="$(cat '/proc/sys/kernel/random/uuid')"
-	cat >$CONFIG_FILE <<-EOF
-		{
-		  "inbounds": [{
-		    "port": $PORT,
-		    "protocol": "vless",
-		    "settings": {
-		      "clients": [
-		        {
-		          "id": "$uuid",
-		          "level": 0
-		        }
-		      ],
-		      "decryption": "none"
-		    },
-		    "streamSettings": {
-		        "streamSettings": {
-		            "network": "mkcp",
-		            "kcpSettings": {
-		                "uplinkCapacity": 100,
-		                "downlinkCapacity": 100,
-		                "congestion": true,
-		                "header": {
-		                    "type": "$HEADER_TYPE"
-		                },
-		                "seed": "$SEED"
-		            }
-		        }
-		    }
-		  }],
-		  "outbounds": [{
-		    "protocol": "freedom",
-		    "settings": {}
-		  },{
-		    "protocol": "blackhole",
-		    "settings": {},
-		    "tag": "blocked"
-		  }]
-		}
-	EOF
-}
-
-configXray() {
-	mkdir -p /usr/local/xray
-	if [[ "$TROJAN" == "true" ]]; then
-		if [[ "$XTLS" == "true" ]]; then
-			trojanXTLSConfig
-		else
-			trojanConfig
-		fi
-		return 0
-	fi
-	if [[ "$VLESS" == "false" ]]; then
-		# VMESS + kcp
-		if [[ "$KCP" == "true" ]]; then
-			vmessKCPConfig
-			return 0
-		fi
-		# VMESS
-		if [[ "$TLS" == "false" ]]; then
-			vmessConfig
-		elif [[ "$WS" == "false" ]]; then
-			# VMESS+TCP+TLS
-			vmessTLSConfig
-		# VMESS+WS+TLS
-		else
-			vmessWSConfig
-		fi
-	#VLESS
-	else
-		if [[ "$KCP" == "true" ]]; then
-			vlessKCPConfig
-			return 0
-		fi
-		# VLESS+TCP
-		if [[ "$WS" == "false" ]]; then
-			# VLESS+TCP+TLS
-			if [[ "$XTLS" == "false" ]]; then
-				vlessTLSConfig
-			# VLESS+TCP+XTLS
-			else
-				vlessXTLSConfig
-			fi
-		# VLESS+WS+TLS
-		else
-			vlessWSConfig
-		fi
-	fi
-}
-
-install() {
-	getData
-	${PACKAGE_UPDATE[int]}
-	${PACKAGE_INSTALL[int]} wget curl sudo vim unzip tar gcc openssl net-tools
-	if [[ $SYSTEM != "CentOS" ]]; then
-		${PACKAGE_INSTALL[int]} libssl-dev g++
-	fi
-	[[ -z $(type -P unzip) ]] && red "unzip安装失败，请检查网络" && exit 1
-	[[ $TLS == "true" || $XTLS == "true" ]] && installNginx
-	setFirewall
-	[[ $TLS == "true" || $XTLS == "true" ]] && getCert
-	# configNginx
-	[[ $TLS == "true" || $XTLS == "true" ]] && configNginx
-	yellow "安装Xray..."
-	getVersion
-	RETVAL="$?"
-	if [[ $RETVAL == 0 ]]; then
-		yellow "Xray最新版 ${CUR_VER} 已经安装"
-	elif [[ $RETVAL == 3 ]]; then
-		exit 1
-	else
-		yellow "安装Xray ${NEW_VER} ，架构$(archAffix)"
-		installXray
-	fi
-	configXray
-	setSelinux
-	installBBR
-	start
-	showInfo
-	bbrReboot
-}
-
-bbrReboot() {
-	if [[ "${INSTALL_BBR}" == "true" ]]; then
-		echo
-		echo "为使BBR模块生效，系统将在30秒后重启"
-		echo
-		echo -e "您可以按 ctrl + c 取消重启，稍后输入 ${RED}reboot${PLAIN} 重启系统"
-		sleep 30
-		reboot
-	fi
-}
-
-update() {
-	res=$(status)
-	[[ $res -lt 2 ]] && red "Xray未安装，请先安装！" && return
-	getVersion
-	RETVAL="$?"
-	if [[ $RETVAL == 0 ]]; then
-		yellow "Xray最新版 ${CUR_VER} 已经安装"
-	elif [[ $RETVAL == 3 ]]; then
-		exit 1
-	else
-		yellow "安装Xray ${NEW_VER} ，架构$(archAffix)"
-		installXray
-		stop
-		start
-		green "最新版Xray安装成功！"
-	fi
+renew_cert() {
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    bash ~/.acme.sh/acme.sh --list
+    read -p "请输入要续期的域名证书（复制Main_Domain下显示的域名）:" domain
+    [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
+    if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
+        checkwarp
+        adddns64
+        bash ~/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
+        checktls
+        back2menu
+    else
+        red "未找到你输入的${domain}域名证书，请再次检查域名输入正确"
+        back2menu
+    fi
 }
 
 uninstall() {
-	res=$(status)
-	if [[ $res -lt 2 ]]; then
-		red "Xray未安装，请先安装！"
-		return
-	fi
-	echo ""
-	read -p "确定卸载Xray？[y/n]：" answer
-	if [[ "${answer,,}" == "y" ]]; then
-		domain=$(grep Host $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-		if [[ "$domain" == "" ]]; then
-			domain=$(grep serverName $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-		fi
-		stop
-		systemctl disable xray
-		rm -rf /etc/systemd/system/xray.service
-		rm -rf /usr/local/bin/xray
-		rm -rf /usr/local/etc/xray
-		if [[ "$BT" == "false" ]]; then
-			systemctl disable nginx
-			${PACKAGE_UNINSTALL[int]} nginx
-			if [[ "$PMT" == "apt" ]]; then
-				${PACKAGE_UNINSTALL[int]} nginx-common
-			fi
-			rm -rf /etc/nginx/nginx.conf
-			if [[ -f /etc/nginx/nginx.conf.bak ]]; then
-				mv /etc/nginx/nginx.conf.bak /etc/nginx/nginx.conf
-			fi
-		fi
-		if [[ "$domain" != "" ]]; then
-			rm -rf ${NGINX_CONF_PATH}${domain}.conf
-		fi
-		[[ -f ~/.acme.sh/acme.sh ]] && ~/.acme.sh/acme.sh --uninstall
-		green "Xray卸载成功"
-	fi
-}
-
-start() {
-	res=$(status)
-	if [[ $res -lt 2 ]]; then
-		red "Xray未安装，请先安装！"
-		return
-	fi
-	stopNginx
-	startNginx
-	systemctl restart xray
-	sleep 2
-	port=$(grep port $CONFIG_FILE | head -n 1 | cut -d: -f2 | tr -d \",' ')
-	res=$(ss -nutlp | grep ${port} | grep -i xray)
-	if [[ "$res" == "" ]]; then
-		red "Xray启动失败，请检查日志或查看端口是否被占用！"
-	else
-		yellow "Xray启动成功"
-	fi
-}
-
-stop() {
-	stopNginx
-	systemctl stop xray
-	yellow "Xray停止成功"
-}
-
-restart() {
-	res=$(status)
-	if [[ $res -lt 2 ]]; then
-		red "Xray未安装，请先安装！"
-		return
-	fi
-	stop
-	start
-}
-
-getConfigFileInfo() {
-	vless="false"
-	tls="false"
-	ws="false"
-	xtls="false"
-	trojan="false"
-	protocol="VMess"
-	kcp="false"
-	uid=$(grep id $CONFIG_FILE | head -n1 | cut -d: -f2 | tr -d \",' ')
-	alterid=$(grep alterId $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-	network=$(grep network $CONFIG_FILE | tail -n1 | cut -d: -f2 | tr -d \",' ')
-	[[ -z "$network" ]] && network="tcp"
-	domain=$(grep serverName $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-	if [[ "$domain" == "" ]]; then
-		domain=$(grep Host $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-		if [[ "$domain" != "" ]]; then
-			ws="true"
-			tls="true"
-			wspath=$(grep path $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-		fi
-	else
-		tls="true"
-	fi
-	if [[ "$ws" == "true" ]]; then
-		port=$(grep -i ssl $NGINX_CONF_PATH${domain}.conf | head -n1 | awk '{print $2}')
-	else
-		port=$(grep port $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-	fi
-	res=$(grep -i kcp $CONFIG_FILE)
-	if [[ "$res" != "" ]]; then
-		kcp="true"
-		type=$(grep header -A 3 $CONFIG_FILE | grep 'type' | cut -d: -f2 | tr -d \",' ')
-		seed=$(grep seed $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-	fi
-	vmess=$(grep vmess $CONFIG_FILE)
-	if [[ "$vmess" == "" ]]; then
-		trojan=$(grep trojan $CONFIG_FILE)
-		if [[ "$trojan" == "" ]]; then
-			vless="true"
-			protocol="VLESS"
-		else
-			trojan="true"
-			password=$(grep password $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-			protocol="trojan"
-		fi
-		tls="true"
-		encryption="none"
-		xtls=$(grep xtlsSettings $CONFIG_FILE)
-		if [[ "$xtls" != "" ]]; then
-			xtls="true"
-			flow=$(grep flow $CONFIG_FILE | cut -d: -f2 | tr -d \",' ')
-		else
-			flow="无"
-		fi
-	fi
-}
-
-outputVmess() {
-	raw="{
-  \"v\":\"2\",
-  \"ps\":\"\",
-  \"add\":\"$IP\",
-  \"port\":\"${port}\",
-  \"id\":\"${uid}\",
-  \"aid\":\"$alterid\",
-  \"net\":\"tcp\",
-  \"type\":\"none\",
-  \"host\":\"\",
-  \"path\":\"\",
-  \"tls\":\"\"
-}"
-	link=$(echo -n ${raw} | base64 -w 0)
-	link="vmess://${link}"
-
-	echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-	echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-	echo -e "   ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-	echo -e "   ${BLUE}额外id(alterid)：${PLAIN} ${RED}${alterid}${PLAIN}"
-	echo -e "   ${BLUE}加密方式(security)：${PLAIN} ${RED}auto${PLAIN}"
-	echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-	echo -e "   ${BLUE}vmess链接:${PLAIN} $RED$link$PLAIN"
-}
-
-outputVmessKCP() {
-	echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-	echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-	echo -e "   ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-	echo -e "   ${BLUE}额外id(alterid)：${PLAIN} ${RED}${alterid}${PLAIN}"
-	echo -e "   ${BLUE}加密方式(security)：${PLAIN} ${RED}auto${PLAIN}"
-	echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-	echo -e "   ${BLUE}伪装类型(type)：${PLAIN} ${RED}${type}${PLAIN}"
-	echo -e "   ${BLUE}mkcp seed：${PLAIN} ${RED}${seed}${PLAIN}"
-}
-
-outputTrojan() {
-	if [[ "$xtls" == "true" ]]; then
-		link="trojan://${password}@${domain}:${port}#"
-		echo -e "   ${BLUE}IP/域名(address): ${PLAIN} ${RED}${domain}${PLAIN}"
-		echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-		echo -e "   ${BLUE}密码(password)：${PLAIN}${RED}${password}${PLAIN}"
-		echo -e "   ${BLUE}流控(flow)：${PLAIN}$RED$flow${PLAIN}"
-		echo -e "   ${BLUE}加密(encryption)：${PLAIN} ${RED}none${PLAIN}"
-		echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-		echo -e "   ${BLUE}底层安全传输(tls)：${PLAIN}${RED}XTLS${PLAIN}"
-		echo -e "   ${BLUE}Trojan链接:${PLAIN} $RED$link$PLAIN"
-	else
-		link="trojan://${password}@${domain}:${port}#"
-		echo -e "   ${BLUE}IP/域名(address): ${PLAIN} ${RED}${domain}${PLAIN}"
-		echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-		echo -e "   ${BLUE}密码(password)：${PLAIN}${RED}${password}${PLAIN}"
-		echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-		echo -e "   ${BLUE}底层安全传输(tls)：${PLAIN}${RED}TLS${PLAIN}"
-		echo -e "   ${BLUE}Trojan链接:${PLAIN} $RED$link$PLAIN"
-	fi
-}
-
-outputVmessTLS() {
-	raw="{
-  \"v\":\"2\",
-  \"ps\":\"\",
-  \"add\":\"$IP\",
-  \"port\":\"${port}\",
-  \"id\":\"${uid}\",
-  \"aid\":\"$alterid\",
-  \"net\":\"${network}\",
-  \"type\":\"none\",
-  \"host\":\"${domain}\",
-  \"path\":\"\",
-  \"tls\":\"tls\"
-}"
-	link=$(echo -n ${raw} | base64 -w 0)
-	link="vmess://${link}"
-	echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-	echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-	echo -e "   ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-	echo -e "   ${BLUE}额外id(alterid)：${PLAIN} ${RED}${alterid}${PLAIN}"
-	echo -e "   ${BLUE}加密方式(security)：${PLAIN} ${RED}none${PLAIN}"
-	echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-	echo -e "   ${BLUE}伪装域名/主机名(host)/SNI/peer名称：${PLAIN}${RED}${domain}${PLAIN}"
-	echo -e "   ${BLUE}底层安全传输(tls)：${PLAIN}${RED}TLS${PLAIN}"
-	echo -e "   ${BLUE}vmess链接: ${PLAIN}$RED$link$PLAIN"
-}
-
-outputVmessWS() {
-	raw="{
-  \"v\":\"2\",
-  \"ps\":\"\",
-  \"add\":\"$IP\",
-  \"port\":\"${port}\",
-  \"id\":\"${uid}\",
-  \"aid\":\"$alterid\",
-  \"net\":\"${network}\",
-  \"type\":\"none\",
-  \"host\":\"${domain}\",
-  \"path\":\"${wspath}\",
-  \"tls\":\"tls\"
-}"
-	link=$(echo -n ${raw} | base64 -w 0)
-	link="vmess://${link}"
-
-	echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-	echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-	echo -e "   ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-	echo -e "   ${BLUE}额外id(alterid)：${PLAIN} ${RED}${alterid}${PLAIN}"
-	echo -e "   ${BLUE}加密方式(security)：${PLAIN} ${RED}none${PLAIN}"
-	echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-	echo -e "   ${BLUE}伪装类型(type)：${PLAIN}${RED}none$PLAIN"
-	echo -e "   ${BLUE}伪装域名/主机名(host)/SNI/peer名称：${PLAIN}${RED}${domain}${PLAIN}"
-	echo -e "   ${BLUE}路径(path)：${PLAIN}${RED}${wspath}${PLAIN}"
-	echo -e "   ${BLUE}底层安全传输(tls)：${PLAIN}${RED}TLS${PLAIN}"
-	echo -e "   ${BLUE}vmess链接:${PLAIN} $RED$link$PLAIN"
-}
-
-showInfo() {
-	res=$(status)
-	if [[ $res -lt 2 ]]; then
-		red "Xray未安装，请先安装！"
-		return
-	fi
-
-	echo ""
-	yellow " Xray配置文件: ${CONFIG_FILE}"
-	yellow " Xray配置信息："
-
-	getConfigFileInfo
-
-	echo -e "   ${BLUE}协议: ${PLAIN} ${RED}${protocol}${PLAIN}"
-	if [[ "$trojan" == "true" ]]; then
-		outputTrojan
-		return 0
-	fi
-	if [[ "$vless" == "false" ]]; then
-		if [[ "$kcp" == "true" ]]; then
-			outputVmessKCP
-			return 0
-		fi
-		if [[ "$tls" == "false" ]]; then
-			outputVmess
-		elif [[ "$ws" == "false" ]]; then
-			outputVmessTLS
-		else
-			outputVmessWS
-		fi
-	else
-		if [[ "$kcp" == "true" ]]; then
-			echo -e "   ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-			echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-			echo -e "   ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-			echo -e "   ${BLUE}加密(encryption)：${PLAIN} ${RED}none${PLAIN}"
-			echo -e "   ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-			echo -e "   ${BLUE}伪装类型(type)：${PLAIN} ${RED}${type}${PLAIN}"
-			echo -e "   ${BLUE}mkcp seed：${PLAIN} ${RED}${seed}${PLAIN}"
-			return 0
-		fi
-		if [[ "$xtls" == "true" ]]; then
-			echo -e " ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-			echo -e " ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-			echo -e " ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-			echo -e " ${BLUE}流控(flow)：${PLAIN}$RED$flow${PLAIN}"
-			echo -e " ${BLUE}加密(encryption)：${PLAIN} ${RED}none${PLAIN}"
-			echo -e " ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-			echo -e " ${BLUE}伪装类型(type)：${PLAIN}${RED}none$PLAIN"
-			echo -e " ${BLUE}伪装域名/主机名(host)/SNI/peer名称：${PLAIN}${RED}${domain}${PLAIN}"
-			echo -e " ${BLUE}底层安全传输(tls)：${PLAIN}${RED}XTLS${PLAIN}"
-		elif [[ "$ws" == "false" ]]; then
-			echo -e " ${BLUE}IP(address):  ${PLAIN}${RED}${IP}${PLAIN}"
-			echo -e " ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-			echo -e " ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-			echo -e " ${BLUE}流控(flow)：${PLAIN}$RED$flow${PLAIN}"
-			echo -e " ${BLUE}加密(encryption)：${PLAIN} ${RED}none${PLAIN}"
-			echo -e " ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-			echo -e " ${BLUE}伪装类型(type)：${PLAIN}${RED}none$PLAIN"
-			echo -e " ${BLUE}伪装域名/主机名(host)/SNI/peer名称：${PLAIN}${RED}${domain}${PLAIN}"
-			echo -e " ${BLUE}底层安全传输(tls)：${PLAIN}${RED}TLS${PLAIN}"
-		else
-			echo -e " ${BLUE}IP(address): ${PLAIN} ${RED}${IP}${PLAIN}"
-			echo -e " ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
-			echo -e " ${BLUE}id(uuid)：${PLAIN}${RED}${uid}${PLAIN}"
-			echo -e " ${BLUE}流控(flow)：${PLAIN}$RED$flow${PLAIN}"
-			echo -e " ${BLUE}加密(encryption)：${PLAIN} ${RED}none${PLAIN}"
-			echo -e " ${BLUE}传输协议(network)：${PLAIN} ${RED}${network}${PLAIN}"
-			echo -e " ${BLUE}伪装类型(type)：${PLAIN}${RED}none$PLAIN"
-			echo -e " ${BLUE}伪装域名/主机名(host)/SNI/peer名称：${PLAIN}${RED}${domain}${PLAIN}"
-			echo -e " ${BLUE}路径(path)：${PLAIN}${RED}${wspath}${PLAIN}"
-			echo -e " ${BLUE}底层安全传输(tls)：${PLAIN}${RED}TLS${PLAIN}"
-		fi
-	fi
-}
-
-showLog() {
-	res=$(status)
-	[[ $res -lt 2 ]] && red "Xray未安装，请先安装！" && exit 1
-	journalctl -xen -u xray --no-pager
-}
-
-warpmenu(){
-	wget -N https://raw.githubusercontents.com/Misaka-blog/Misaka-WARP-Script/master/misakawarp.sh && bash misakawarp.sh
-}
-
-setdns64(){
-	if [[ -n $(curl -s6m8 https://ip.gs) ]]; then
-		echo -e nameserver 2a01:4f8:c2c:123f::1 > /etc/resolv.conf
-	fi
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh无法执行" && exit 1
+    curl https://get.acme.sh | sh
+    ~/.acme.sh/acme.sh --uninstall
+    sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
+    rm -rf ~/.acme.sh
+    rm -f acme1key.sh
+    back2menu
 }
 
 menu() {
-	clear
-	echo "#############################################################"
-	echo -e "#                     ${RED}Xray一键安装脚本${PLAIN}                      #"
-	echo -e "# ${GREEN}作者${PLAIN}: 网络跳越(hijk) & MisakaNo                           #"
-	echo -e "# ${GREEN}博客${PLAIN}: https://owo.misaka.rest                             #"
-	echo -e "# ${GREEN}TG群${PLAIN}: https://t.me/misakanetcn                            #"
-	echo "#############################################################"
-	echo -e "  "
-	echo -e "  ${GREEN}1.${PLAIN}   安装Xray-VMESS"
-	echo -e "  ${GREEN}2.${PLAIN}   安装Xray-${BLUE}VMESS+mKCP${PLAIN}"
-	echo -e "  ${GREEN}3.${PLAIN}   安装Xray-VMESS+TCP+TLS"
-	echo -e "  ${GREEN}4.${PLAIN}   安装Xray-${BLUE}VMESS+WS+TLS${PLAIN}${RED}(推荐)${PLAIN}"
-	echo -e "  ${GREEN}5.${PLAIN}   安装Xray-${BLUE}VLESS+mKCP${PLAIN}"
-	echo -e "  ${GREEN}6.${PLAIN}   安装Xray-VLESS+TCP+TLS"
-	echo -e "  ${GREEN}7.${PLAIN}   安装Xray-${BLUE}VLESS+WS+TLS${PLAIN}${RED}(可过cdn)${PLAIN}"
-	echo -e "  ${GREEN}8.${PLAIN}   安装Xray-${BLUE}VLESS+TCP+XTLS${PLAIN}${RED}(推荐)${PLAIN}"
-	echo -e "  ${GREEN}9.${PLAIN}   安装${BLUE}Trojan${PLAIN}${RED}(推荐)${PLAIN}"
-	echo -e "  ${GREEN}10.${PLAIN}  安装${BLUE}Trojan+XTLS${PLAIN}${RED}(推荐)${PLAIN}"
-	echo " -------------"
-	echo -e "  ${GREEN}11.${PLAIN}  更新Xray"
-	echo -e "  ${GREEN}12.  ${RED}卸载Xray${PLAIN}"
-	echo " -------------"
-	echo -e "  ${GREEN}13.${PLAIN}  启动Xray"
-	echo -e "  ${GREEN}14.${PLAIN}  重启Xray"
-	echo -e "  ${GREEN}15.${PLAIN}  停止Xray"
-	echo " -------------"
-	echo -e "  ${GREEN}16.${PLAIN}  查看Xray配置"
-	echo -e "  ${GREEN}17.${PLAIN}  查看Xray日志"
-	echo " -------------"
-	echo -e "  ${GREEN}18.${PLAIN}  安装并管理WARP"
-	echo -e "  ${GREEN}19.${PLAIN}  设置DNS64服务器"
-	echo " -------------"
-	echo -e "  ${GREEN}0.${PLAIN}   退出"
-	echo -n " 当前状态："
-	statusText
-	echo
-
-	read -p "请选择操作[0-19]：" answer
-	case $answer in
-		0) exit 1 ;;
-		1) install ;;
-		2) KCP="true" && install ;;
-		3) TLS="true" && install ;;
-		4) TLS="true" && WS="true" && install ;;
-		5) VLESS="true" && KCP="true" && install ;;
-		6) VLESS="true" && TLS="true" && install ;;
-		7) VLESS="true" && TLS="true" && WS="true" && install ;;
-		8) VLESS="true" && TLS="true" && XTLS="true" && install ;;
-		9) TROJAN="true" && TLS="true" && install ;;
-		10) TROJAN="true" && TLS="true" && XTLS="true" && install ;;
-		11) update ;;
-		12) uninstall ;;
-		13) start ;;
-		14) restart ;;
-		15) stop ;;
-		16) showInfo ;;
-		17) showLog ;;
-		18) warpmenu ;;
-		19) setdns64 ;;
-		*) red "请选择正确的操作！" && exit 1 ;;
-	esac
+    clear
+    red "=================================="
+    echo "                           "
+    red "    Acme.sh 域名证书一键申请脚本     "
+    red "          by 小御坂的破站           "
+    echo "                           "
+    red "  Site: https://owo.misaka.rest  "
+    echo "                           "
+    red "=================================="
+    echo "                           "
+    green "1. 安装Acme.sh域名证书申请脚本"
+    green "2. 申请单域名证书（80端口申请）"
+    green "3. 申请单域名证书（CF API申请）"
+    green "4. 申请泛域名证书（CF API申请）"
+    green "5. 撤销并删除已申请的证书"
+    green "6. 手动续期域名证书"
+    green "7. 卸载Acme.sh域名证书申请脚本"
+    green "0. 退出"
+    echo "         "
+    read -p "请输入数字:" NumberInput
+    case "$NumberInput" in
+        1) install_acme ;;
+        2) getSingleCert ;;
+        3) getSingleDomainCert ;;
+        4) getDomainCert ;;
+        5) revoke_cert ;;
+        6) renew_cert ;;
+        7) uninstall ;;
+        *) exit 1 ;;
+    esac
 }
 
-action=$1
-[[ -z $1 ]] && action=menu
-
-case "$action" in
-menu | update | uninstall | start | restart | stop | showInfo | showLog) ${action} ;;
-*) echo " 参数错误" && echo " 用法: $(basename $0) [menu|update|uninstall|start|restart|stop|showInfo|showLog]" ;;
-esac
+menu
