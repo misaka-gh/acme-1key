@@ -99,7 +99,7 @@ getSingleCert(){
         elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
             if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]] && [[ $domainIP != $realip ]]; then
                 green "${domain} 解析结果：（$domainIP）"
-                red "当前二级域名解析的IP与当前VPS使用的IP不匹配"
+                red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
                 green "建议如下："
                 yellow "1. 请确保CloudFlare为关闭状态(仅限DNS)，其他域名解析网站设置同理"
                 yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
