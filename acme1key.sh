@@ -53,14 +53,14 @@ install_acme(){
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+    bash ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
     if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
         green "Acme.sh证书申请脚本安装成功！"
     else
         red "抱歉，Acme.sh证书申请脚本安装失败"
         green "建议如下："
-        yellow "1. 检查VPS的网络环境，如为IPv6 Only的VPS请自行添加WARP或DNS64以安装Acme.sh"
-        yellow "2. GitHub上游可能出了一些问题，请过一会儿再试"
-        yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+        yellow "1. 检查VPS的网络环境"
+        yellow "2. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
     fi
     back2menu
 }
@@ -80,16 +80,16 @@ getSingleCert(){
         domainIP=$(curl -s ipget.net/?ip="$domain")
         if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
             if [[ -n $(echo $realip | grep ":") ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --listen-v6
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
             else
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
             fi
         else
             if [[ $domainIP == $ipv6 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt --listen-v6
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
             fi
             if [[ $domainIP == $ipv4 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --server letsencrypt
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
             fi
         fi
 
@@ -101,8 +101,8 @@ getSingleCert(){
                 green "${domain} 解析结果：（$domainIP）"
                 red "当前二级域名解析的IP与当前VPS使用的IP不匹配"
                 green "建议如下："
-                yellow "1. 请确保Cloudflare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
-                yellow "2. 请检查DNS解析设置的IP是否为VPS的IP"
+                yellow "1. 请确保CloudFlare为关闭状态(仅限DNS)，其他域名解析网站设置同理"
+                yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
                 yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
                 exit 1
             fi
@@ -118,36 +118,36 @@ getDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -p "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
-    read -p "请输入Cloudflare Global API Key：" GAK
-    [[ -z $GAK ]] && red "未输入Cloudflare Global API Key，无法执行操作！" && exit 1
+    read -p "请输入CloudFlare Global API Key：" GAK
+    [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
-    read -p "请输入Cloudflare的登录邮箱：" CFemail
-    [[ -z $domain ]] && red "未输入Cloudflare的登录邮箱，无法执行操作！" && exit 1
+    read -p "请输入CloudFlare的登录邮箱：" CFemail
+    [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
     export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
-        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server letsencrypt --listen-v6
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --listen-v6
     else
-        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256 --server letsencrypt
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "*.${domain}" -d "${domain}" -k ec-256
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d "*.${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
 }
 
 getSingleDomainCert(){
-    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装Acme.sh，无法执行操作" && exit 1
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
     read -p "请输入需要申请证书的域名：" domain
-    read -p "请复制Cloudflare的Global API Key：" GAK
-    [[ -z $GAK ]] && red "未输入Cloudflare Global API Key，无法执行操作！" && exit 1
+    read -p "请复制CloudFlare的Global API Key：" GAK
+    [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
-    read -p "请输入登录Cloudflare的注册邮箱地址：" CFemail
-    [[ -z $domain ]] && red "未输入Cloudflare的登录邮箱，无法执行操作！" && exit 1
+    read -p "请输入登录CloudFlare的注册邮箱地址：" CFemail
+    [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
     export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
-        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server letsencrypt --listen-v6
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --listen-v6
     else
-        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256 --server letsencrypt
+        bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d "${domain}" -k ec-256
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d "${domain}" --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
@@ -166,8 +166,8 @@ checktls() {
             red "抱歉，证书申请失败"
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
-            yellow "2. 在使用CF API申请模式时，如果使用Freenom域名，由于API限制，暂时不能使用此方式申请"
-            yellow "3. 同一域名多次申请触发Acme.sh官方风控，请更换域名或等待7天后再尝试执行脚本"
+            yellow "2. 在使用CloudFlare API申请模式时，如果使用Freenom域名，由于API限制，暂时不能使用此方式申请"
+            yellow "3. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
             yellow "4. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
             back2menu
         fi
@@ -207,7 +207,7 @@ renew_cert() {
 }
 
 uninstall() {
-    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh无法执行" && exit 1
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装Acme.sh，卸载程序无法执行" && exit 1
     curl https://get.acme.sh | sh
     ~/.acme.sh/acme.sh --uninstall
     sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
@@ -227,10 +227,10 @@ menu() {
     echo "                           "
     red "=================================="
     echo "                           "
-    green "1. 安装Acme.sh域名证书申请脚本"
+    green "1. 安装Acme.sh域名证书申请脚本（必须安装）"
     green "2. 申请单域名证书（80端口申请）"
-    green "3. 申请单域名证书（CF API申请）"
-    green "4. 申请泛域名证书（CF API申请）"
+    green "3. 申请单域名证书（CloudFlare API申请）（无需解析）"
+    green "4. 申请泛域名证书（CloudFlare API申请）（无需解析）"
     green "5. 撤销并删除已申请的证书"
     green "6. 手动续期域名证书"
     green "7. 卸载Acme.sh域名证书申请脚本"
