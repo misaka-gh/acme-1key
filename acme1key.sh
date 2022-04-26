@@ -75,9 +75,9 @@ getSingleCert(){
     read -p "请输入解析完成的域名:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
-    domainIP=$(curl -s ipget.net/?ip="cloudflare.1.1.1.1.$domain")
+    domainIP=$(curl -sm8 ipget.net/?ip="cloudflare.1.1.1.1.$domain")
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
-        domainIP=$(curl -s ipget.net/?ip="$domain")
+        domainIP=$(curl -sm8 ipget.net/?ip="$domain")
         if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
             if [[ -n $(echo $realip | grep ":") ]]; then
                 bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
