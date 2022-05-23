@@ -147,7 +147,7 @@ getSingleDomainCert(){
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
         back2menu
     fi
-    read -p "请复制CloudFlare Global API Key：" GAK
+    read -p "请输入CloudFlare Global API Key：" GAK
     [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
     read -p "请输入CloudFlare的登录邮箱：" CFemail
