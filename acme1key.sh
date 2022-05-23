@@ -41,7 +41,9 @@ back2menu() {
 }
 
 install_acme(){
-    ${PACKAGE_UPDATE[int]}
+    if [[ ! $SYSTEM == "CentOS ]]; then
+        ${PACKAGE_UPDATE[int]}
+    fi
     [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
     [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
     [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
