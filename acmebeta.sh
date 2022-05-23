@@ -1,5 +1,4 @@
 #!/bin/bash
-
 red() {
     echo -e "\033[31m\033[01m$1\033[0m"
 }
@@ -14,7 +13,7 @@ yellow() {
 
 REGEX=("debian" "ubuntu" "centos|red hat|kernel|oracle linux|alma|rocky" "'amazon linux'")
 RELEASE=("Debian" "Ubuntu" "CentOS" "CentOS")
-PACKAGE_UPDATE=("apt -y update" "apt -y update" "yum -y update" "yum -y update")
+PACKAGE_UPDATE=("apt-get -y update" "apt-get -y update" "yum -y update" "yum -y update")
 PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "yum -y install")
 PACKAGE_UNINSTALL=("apt -y autoremove" "apt -y autoremove" "yum -y autoremove" "yum -y autoremove")
 
@@ -146,10 +145,10 @@ getSingleDomainCert(){
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
         back2menu
     fi
-    read -p "请复制CloudFlare的Global API Key：" GAK
+    read -p "请复制CloudFlare Global API Key：" GAK
     [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
-    read -p "请输入登录CloudFlare的注册邮箱地址：" CFemail
+    read -p "请输入CloudFlare的登录邮箱：" CFemail
     [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
     export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
@@ -174,9 +173,8 @@ checktls() {
             red "抱歉，证书申请失败"
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
-            yellow "2. 在使用CloudFlare API申请模式时，如果使用Freenom域名，由于API限制，暂时不能使用此方式申请"
-            yellow "3. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
-            yellow "4. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+            yellow "2. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
+            yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
             back2menu
         fi
     fi
@@ -238,8 +236,8 @@ menu() {
     echo "                           "
     green "1. 安装Acme.sh域名证书申请脚本（必须安装）"
     green "2. 申请单域名证书（80端口申请）"
-    green "3. 申请单域名证书（CloudFlare API申请）（无需解析）（不支持freenom域名）"
-    green "4. 申请泛域名证书（CloudFlare API申请）（无需解析）（不支持freenom域名）"
+    green "3. 申请单域名证书（CF API申请）（无需解析）（不支持freenom域名）"
+    green "4. 申请泛域名证书（CF API申请）（无需解析）（不支持freenom域名）"
     green "5. 撤销并删除已申请的证书"
     green "6. 手动续期域名证书"
     green "7. 卸载Acme.sh域名证书申请脚本"
