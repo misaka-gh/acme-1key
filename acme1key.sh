@@ -41,7 +41,7 @@ back2menu() {
 }
 
 install_acme(){
-    if [[ ! $SYSTEM == "CentOS ]]; then
+    if [[ ! $SYSTEM == "CentOS" ]]; then
         ${PACKAGE_UPDATE[int]}
     fi
     [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
