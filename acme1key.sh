@@ -1,4 +1,5 @@
 #!/bin/bash
+
 red() {
     echo -e "\033[31m\033[01m$1\033[0m"
 }
@@ -49,7 +50,7 @@ install_acme(){
     [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
     [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron systemctl enable cron
     [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
-    read -p "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
+    read -rp "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
     [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
@@ -73,7 +74,7 @@ getSingleCert(){
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
     realip=$(curl -sm8 ip.sb)
-    read -p "请输入解析完成的域名:" domain
+    read -rp "请输入解析完成的域名:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
     domainIP=$(curl -sm8 ipget.net/?ip=misaka.sama."$domain")
@@ -117,16 +118,16 @@ getDomainCert(){
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
-    read -p "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
+    read -rp "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
         back2menu
     fi
-    read -p "请输入CloudFlare Global API Key：" GAK
+    read -rp "请输入CloudFlare Global API Key：" GAK
     [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
-    read -p "请输入CloudFlare的登录邮箱：" CFemail
+    read -rp "请输入CloudFlare的登录邮箱：" CFemail
     [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
     export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
@@ -142,15 +143,15 @@ getSingleDomainCert(){
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装Acme.sh，无法执行操作" && exit 1
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
-    read -p "请输入需要申请证书的域名：" domain
+    read -rp "请输入需要申请证书的域名：" domain
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
         back2menu
     fi
-    read -p "请输入CloudFlare Global API Key：" GAK
+    read -rp "请输入CloudFlare Global API Key：" GAK
     [[ -z $GAK ]] && red "未输入CloudFlare Global API Key，无法执行操作！" && exit 1
     export CF_Key="$GAK"
-    read -p "请输入CloudFlare的登录邮箱：" CFemail
+    read -rp "请输入CloudFlare的登录邮箱：" CFemail
     [[ -z $domain ]] && red "未输入CloudFlare的登录邮箱，无法执行操作！" && exit 1
     export CF_Email="$CFemail"
     if [[ -z $ipv4 ]]; then
@@ -185,7 +186,7 @@ checktls() {
 revoke_cert() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
     bash ~/.acme.sh/acme.sh --list
-    read -p "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
+    read -rp "请输入要撤销的域名证书（复制Main_Domain下显示的域名）:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
         bash ~/.acme.sh/acme.sh --revoke -d ${domain} --ecc
@@ -203,7 +204,7 @@ revoke_cert() {
 renew_cert() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
     bash ~/.acme.sh/acme.sh --list
-    read -p "请输入要续期的域名证书（复制Main_Domain下显示的域名）:" domain
+    read -rp "请输入要续期的域名证书（复制Main_Domain下显示的域名）:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     if [[ -n $(bash ~/.acme.sh/acme.sh --list | grep $domain) ]]; then
         bash ~/.acme.sh/acme.sh --renew -d ${domain} --force --ecc
@@ -245,7 +246,7 @@ menu() {
     green "7. 卸载Acme.sh域名证书申请脚本"
     green "0. 退出"
     echo "         "
-    read -p "请输入数字:" NumberInput
+    read -rp "请输入数字:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
         2) getSingleCert ;;
