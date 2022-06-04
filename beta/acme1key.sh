@@ -70,6 +70,33 @@ install_acme(){
     back2menu
 }
 
+check_80(){
+    # 感谢Wulabing前辈提供的检查80端口思路
+    # Source: https://github.com/wulabing/Xray_onekey
+
+    if [[ -z $(type -P lsof) ]]; then
+        ${PACKAGE_UPDATE[int]}
+        ${PACKAGE_INSTALL[int]} lsof
+    fi
+
+    yellow "检查80端口是否开放..."
+    sleep 1
+
+    if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
+        green "80 端口未被占用"
+        sleep 1
+    else
+        red "检测到 80 端口被占用，以下为 80 端口占用信息"
+        lsof -i:"80"
+        read -rp "如需结束进程请按Y，按其他键退出：" yn
+        if [[ $yn =~ "Y"|"y" ]]; then
+            lsof -i:"80" | awk '{print $2}' | grep -v "PID" | xargs kill -9
+        else
+            exit 1
+        fi
+    fi
+}
+
 getSingleCert(){
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装acme.sh，无法执行操作" && exit 1
     check_80
@@ -116,33 +143,6 @@ getSingleCert(){
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
-}
-
-check_80(){
-    # 感谢Wulabing前辈提供的检查80端口思路
-    # Source: https://github.com/wulabing/Xray_onekey
-
-    if [[ -z $(type -P lsof) ]]; then
-        ${PACKAGE_UPDATE[int]}
-        ${PACKAGE_INSTALL[int]} lsof
-    fi
-
-    yellow "检查80端口是否开放..."
-    sleep 1
-
-    if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
-        green "80 端口未被占用"
-        sleep 1
-    else
-        red "检测到 80 端口被占用，以下为 80 端口占用信息"
-        lsof -i:"80"
-        read -rp "如需结束进程请按Y，按其他键退出：" yn
-        if [[ $yn =~ "Y"|"y" ]]; then
-            lsof -i:"$1" | awk '{print $2}' | grep -v "PID" | xargs kill -9
-        else
-            exit 1
-        fi
-    fi
 }
 
 getDomainCert(){
@@ -259,33 +259,34 @@ uninstall() {
 
 menu() {
     clear
-    red "=================================="
-    echo "                           "
-    red "    Acme.sh 域名证书一键申请脚本     "
-    red "          by 小御坂的破站           "
-    echo "                           "
-    red "  Site: https://owo.misaka.rest  "
-    echo "                           "
-    red "=================================="
-    echo "                           "
-    green "1. 安装Acme.sh域名证书申请脚本（必须安装）"
-    green "2. 申请单域名证书（80端口申请）"
-    green "3. 申请单域名证书（CF API申请）（无需解析）（不支持freenom域名）"
-    green "4. 申请泛域名证书（CF API申请）（无需解析）（不支持freenom域名）"
-    green "5. 撤销并删除已申请的证书"
-    green "6. 手动续期域名证书"
-    green "7. 卸载Acme.sh域名证书申请脚本"
-    green "0. 退出"
-    echo "         "
-    read -rp "请输入数字:" NumberInput
+    echo "#############################################################"
+    echo -e "#                ${RED} acme  一键证书申请脚本${PLAIN}                    #"
+    echo -e "# ${GREEN}作者${PLAIN}: Misaka No                                           #"
+    echo -e "# ${GREEN}网址${PLAIN}: https://owo.misaka.rest                             #"
+    echo -e "# ${GREEN}论坛${PLAIN}: https://vpsgo.co                                    #"
+    echo -e "# ${GREEN}TG群${PLAIN}: https://t.me/misakanetcn                            #"
+    echo "#############################################################"
+    echo ""
+    echo -e " ${GREEN}1.${PLAIN} 安装 Acme.sh 域名证书申请脚本"
+    echo -e " ${GREEN}2.${PLAIN} ${RED}卸载 Acme.sh 域名证书申请脚本${PLAIN}"
+    echo " -------------"
+    echo -e " ${GREEN}3.${PLAIN} 申请单域名证书 ${YELLOW}(80端口申请)${PLAIN}"
+    echo -e " ${GREEN}4.${PLAIN} 申请单域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
+    echo -e " ${GREEN}5.${PLAIN} 申请泛域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
+    echo " -------------"
+    echo -e " ${GREEN}6.${PLAIN} 撤销并删除已申请的证书"
+    echo -e " ${GREEN}7.${PLAIN} 手动续期已申请的证书"
+    echo -e " ${GREEN}0.${PLAIN} 退出脚本"
+    echo ""
+    read -rp "请输入选项 [0-7]:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
-        2) getSingleCert ;;
-        3) getSingleDomainCert ;;
-        4) getDomainCert ;;
-        5) revoke_cert ;;
-        6) renew_cert ;;
-        7) uninstall ;;
+        2) uninstall ;;
+        3) getSingleCert ;;
+        4) getSingleDomainCert ;;
+        5) getDomainCert ;;
+        6) revoke_cert ;;
+        7) renew_cert ;;
         *) exit 1 ;;
     esac
 }
