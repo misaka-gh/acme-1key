@@ -79,7 +79,7 @@ check_80(){
         ${PACKAGE_INSTALL[int]} lsof
     fi
 
-    yellow "检查80端口是否开放..."
+    yellow "检查 80 端口是否占用..."
     sleep 1
 
     if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
@@ -88,7 +88,7 @@ check_80(){
     else
         red "检测到 80 端口被占用，以下为 80 端口占用信息"
         lsof -i:"80"
-        read -rp "如需结束进程请按Y，按其他键退出：" yn
+        read -rp "如需结束占用进程请按Y，按其他键退出：" yn
         if [[ $yn =~ "Y"|"y" ]]; then
             lsof -i:"80" | awk '{print $2}' | grep -v "PID" | xargs kill -9
         else
