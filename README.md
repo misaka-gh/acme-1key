@@ -50,3 +50,5 @@ wget -N --no-check-certificate https://raw.githubusercontents.com/Misaka-blog/ac
 感谢他们的贡献，让脚本得到进一步完善
 
 Acme.sh https://github.com/acmesh-official/acme.sh
+
+wulabing: https://github.com/wulabing/Xray_onekey
