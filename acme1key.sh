@@ -140,6 +140,9 @@ getSingleCert(){
                 exit 1
             fi
         fi
+    else
+        red "疑似泛域名解析，请使用泛域名申请模式"
+        back2menu
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
@@ -212,6 +215,12 @@ checktls() {
             back2menu
         fi
     fi
+}
+
+view_cert(){
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    bash ~/.acme.sh/acme.sh --list
+    back2menu
 }
 
 revoke_cert() {
