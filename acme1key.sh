@@ -284,8 +284,9 @@ menu() {
     echo -e " ${GREEN}4.${PLAIN} 申请单域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
     echo -e " ${GREEN}5.${PLAIN} 申请泛域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
     echo " -------------"
-    echo -e " ${GREEN}6.${PLAIN} 撤销并删除已申请的证书"
-    echo -e " ${GREEN}7.${PLAIN} 手动续期已申请的证书"
+    echo -e " ${GREEN}6.${PLAIN} 查看已申请的证书"
+    echo -e " ${GREEN}7.${PLAIN} 撤销并删除已申请的证书"
+    echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
     read -rp "请输入选项 [0-7]:" NumberInput
@@ -295,8 +296,9 @@ menu() {
         3) getSingleCert ;;
         4) getSingleDomainCert ;;
         5) getDomainCert ;;
-        6) revoke_cert ;;
-        7) renew_cert ;;
+        6) view_cert ;;
+        7) revoke_cert ;;
+        8) renew_cert ;;
         *) exit 1 ;;
     esac
 }
