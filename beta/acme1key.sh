@@ -278,12 +278,9 @@ renew_cert() {
 
 uninstall() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装Acme.sh，卸载程序无法执行" && exit 1
-    curl https://get.acme.sh | sh
     ~/.acme.sh/acme.sh --uninstall
     sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
     rm -rf ~/.acme.sh
-    rm -f acme1key.sh
-    back2menu
 }
 
 menu() {
