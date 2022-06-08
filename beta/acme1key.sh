@@ -161,7 +161,7 @@ getSingleCert(){
             fi
         fi
     else
-        red "疑似泛域名解析，请使用泛域名申请模式"
+        red "目前疑似使用泛域名解析，请使用泛域名申请模式"
         back2menu
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
