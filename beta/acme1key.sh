@@ -124,26 +124,25 @@ getSingleCert(){
     WARPv6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
-    realip=$(curl -sm8 ip.sb)
+    realipv4=$(curl -s4m8 ip.sb)
+    realipv6=$(curl -s6m8 ip.sb)
     read -rp "请输入解析完成的域名:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
     domainIP=$(curl -sm8 ipget.net/?ip=misaka.sama."$domain")
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
         domainIP=$(curl -sm8 ipget.net/?ip="$domain")
-        if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
-            if [[ -n $(echo $realip | grep ":") ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
-            else
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
-            fi
-        else
-            if [[ $domainIP == $ipv6 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
-            fi
-            if [[ $domainIP == $ipv4 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
-            fi
+        if [[ $domainIP == $ipv6 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+        fi
+        if [[ $domainIP == $ipv4 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+        fi
+        if [[ $domainIP == $realipv6 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+        fi
+        if [[ $domainIP == $realipv4 ]]; then
+            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
         fi
 
         if [[ -n $(echo $domainIP | grep nginx) ]]; then
