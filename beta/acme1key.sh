@@ -55,7 +55,7 @@ back2menu() {
 }
 
 install_base(){
-    if[[ ! $SYSTEM == "CentOS" ]]; then
+    if [[ ! $SYSTEM == "CentOS" ]]; then
         ${PACKAGE_UPDATE[int]}
     fi
     ${PACKAGE_INSTALL[int]} curl wget sudo socat
