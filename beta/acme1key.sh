@@ -124,8 +124,8 @@ getSingleCert(){
     WARPv6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
-    realipv4=$(curl -s4m8 ip.sb)
-    realipv6=$(curl -s6m8 ip.sb)
+    realipv4=$(curl -s4m8 http://ip.sb)
+    realipv6=$(curl -s6m8 http://ip.sb)
     read -rp "请输入解析完成的域名:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
