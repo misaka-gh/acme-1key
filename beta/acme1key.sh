@@ -39,7 +39,7 @@ done
 
 back2menu() {
     green "所选操作执行完成"
-    read -p "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
+    read -rp "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
     case "$back2menuInput" in
         y) exit 1 ;;
         *) menu ;;
@@ -83,7 +83,7 @@ check_80(){
     sleep 1
 
     if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
-        green "80 端口未被占用"
+        green "目前 80 端口未被占用"
         sleep 1
     else
         red "检测到 80 端口被占用，以下为 80 端口占用信息"
@@ -91,6 +91,7 @@ check_80(){
         read -rp "如需结束占用进程请按Y，按其他键退出：" yn
         if [[ $yn =~ "Y"|"y" ]]; then
             lsof -i:"80" | awk '{print $2}' | grep -v "PID" | xargs kill -9
+            sleep 1
         else
             exit 1
         fi
@@ -140,6 +141,9 @@ getSingleCert(){
                 exit 1
             fi
         fi
+    else
+        red "疑似泛域名解析，请使用泛域名申请模式"
+        back2menu
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
     checktls
@@ -214,6 +218,12 @@ checktls() {
     fi
 }
 
+view_cert(){
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
+    bash ~/.acme.sh/acme.sh --list
+    back2menu
+}
+
 revoke_cert() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh，无法执行操作" && exit 1
     bash ~/.acme.sh/acme.sh --list
@@ -274,8 +284,9 @@ menu() {
     echo -e " ${GREEN}4.${PLAIN} 申请单域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
     echo -e " ${GREEN}5.${PLAIN} 申请泛域名证书 ${YELLOW}(CF API申请)${PLAIN} ${GREEN}(无需解析)${PLAIN} ${RED}(不支持freenom域名)${PLAIN}"
     echo " -------------"
-    echo -e " ${GREEN}6.${PLAIN} 撤销并删除已申请的证书"
-    echo -e " ${GREEN}7.${PLAIN} 手动续期已申请的证书"
+    echo -e " ${GREEN}6.${PLAIN} 查看已申请的证书"
+    echo -e " ${GREEN}7.${PLAIN} 撤销并删除已申请的证书"
+    echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
     read -rp "请输入选项 [0-7]:" NumberInput
@@ -285,8 +296,9 @@ menu() {
         3) getSingleCert ;;
         4) getSingleDomainCert ;;
         5) getDomainCert ;;
-        6) revoke_cert ;;
-        7) renew_cert ;;
+        6) view_cert ;;
+        7) revoke_cert ;;
+        8) renew_cert ;;
         *) exit 1 ;;
     esac
 }
