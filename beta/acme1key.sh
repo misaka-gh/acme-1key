@@ -46,11 +46,15 @@ back2menu() {
     esac
 }
 
+install_base(){
+    if[[ ! $SYSTEM == "CentOS" ]]; then
+        ${PACKAGE_UPDATE[int]}
+    fi
+    ${PACKAGE_INSTALL[int]} curl wget sudo socat
+}
+
 install_acme(){
-    [[ ! $SYSTEM == "CentOS" ]] && ${PACKAGE_UPDATE[int]}
-    [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
-    [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
-    [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
+    install_base
     [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron systemctl enable cron
     [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
     read -rp "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
