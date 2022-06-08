@@ -289,7 +289,7 @@ menu() {
     echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
-    read -rp "请输入选项 [0-7]:" NumberInput
+    read -rp "请输入选项 [0-8]:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
         2) uninstall ;;

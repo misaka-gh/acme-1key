@@ -152,7 +152,7 @@ getSingleCert(){
             yellow "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本"
             exit 1
         elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
-            if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]] && [[ $domainIP != $realip ]]; then
+            if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]] && [[ $domainIP != $realipv4 ]] && [[ $domainIP != $realipv6 ]]; then
                 green "${domain} 解析结果：（$domainIP）"
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
                 green "建议如下："
@@ -307,7 +307,7 @@ menu() {
     echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
-    read -rp "请输入选项 [0-7]:" NumberInput
+    read -rp "请输入选项 [0-8]:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
         2) uninstall ;;
