@@ -132,17 +132,20 @@ getSingleCert(){
     domainIP=$(curl -sm8 ipget.net/?ip=misaka.sama."$domain")
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
         domainIP=$(curl -sm8 ipget.net/?ip="$domain")
-        if [[ $domainIP == $ipv6 ]]; then
-            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
-        fi
-        if [[ $domainIP == $ipv4 ]]; then
-            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
-        fi
-        if [[ $domainIP == $realipv6 ]]; then
-            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
-        fi
-        if [[ $domainIP == $realipv4 ]]; then
-            bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+        if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
+            if [[ $domainIP == $realipv6 ]]; then
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+            fi
+            if [[ $domainIP == $realipv4 ]]; then
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+            fi
+        else
+            if [[ $domainIP == $ipv6 ]]; then
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+            fi
+            if [[ $domainIP == $ipv4 ]]; then
+                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+            fi
         fi
 
         if [[ -n $(echo $domainIP | grep nginx) ]]; then
