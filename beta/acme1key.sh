@@ -51,13 +51,20 @@ install_base(){
         ${PACKAGE_UPDATE[int]}
     fi
     ${PACKAGE_INSTALL[int]} curl wget sudo socat
+    if [[ $SYSTEM == CentOS ]]; then
+        ${PACKAGE_INSTALL[int]} cronie
+        systemctl start crond
+        systemctl enable crond
+    else
+        ${PACKAGE_INSTALL[int]} cron
+        systemctl start cron
+        systemctl enable cron
+    fi
 }
 
 install_acme(){
     install_base
-    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron systemctl enable cron
-    [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
-    read -rp "请输入注册邮箱（例：admin@misaka.rest，或留空自动生成）：" acmeEmail
+    read -rp "请输入注册邮箱（例：admin@gmail.com，或留空自动生成）：" acmeEmail
     [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
