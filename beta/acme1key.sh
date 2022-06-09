@@ -101,7 +101,7 @@ check_80(){
     yellow "检查 80 端口是否占用..."
     sleep 1
 
-    if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
+    if [[  $(lsof -i:"80" | grep -i -c "listen") -eq 0 ]]; then
         green "目前 80 端口未被占用"
         sleep 1
     else
@@ -288,10 +288,13 @@ uninstall() {
 menu() {
     clear
     echo "#############################################################"
-    echo -e "#                ${RED} acme  一键证书申请脚本${PLAIN}                    #"
+    echo -e "#                   ${RED}Acme  一键申请证书脚本${PLAIN}                  #"
     echo -e "# ${GREEN}作者${PLAIN}: Misaka No                                           #"
-    echo -e "# ${GREEN}网址${PLAIN}: https://owo.misaka.rest                             #"
+    echo -e "# ${GREEN}博客${PLAIN}: https://owo.misaka.rest                             #"
     echo -e "# ${GREEN}论坛${PLAIN}: https://vpsgo.co                                    #"
+    echo -e "# ${GREEN}GitHub${PLAIN}: https://github.com/Misaka-blog                    #"
+    echo -e "# ${GREEN}Bitbucket${PLAIN}: https://bitbucket.org/misakano7545             #"
+    echo -e "# ${GREEN}GitLab${PLAIN}: https://gitlab.com/misaka-blog                    #"
     echo -e "# ${GREEN}TG群${PLAIN}: https://t.me/misakanetcn                            #"
     echo "#############################################################"
     echo ""
@@ -305,6 +308,7 @@ menu() {
     echo -e " ${GREEN}6.${PLAIN} 查看已申请的证书"
     echo -e " ${GREEN}7.${PLAIN} 撤销并删除已申请的证书"
     echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
+    echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
     read -rp "请输入选项 [0-8]:" NumberInput
