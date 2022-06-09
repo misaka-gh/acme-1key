@@ -1,6 +1,6 @@
 # Acme.sh 域名证书一键申请脚本
 
-此脚本可以帮助你使用acme.sh脚本申请域名的ssl证书
+此脚本可以帮助你使用acme.sh脚本申请域名的ssl证书，并将证书文件保存到 `/root` 文件夹下
 
 如对脚本不放心，可使用此沙箱先测一遍再使用：https://killercoda.com/playgrounds/scenario/ubuntu
 
@@ -20,12 +20,6 @@ wget -N --no-check-certificate https://raw.githubusercontents.com/Misaka-blog/ac
 
 ## 交流群
 [Telegram](https://t.me/misakanetcn)
-
-## 提示
-
-对于双栈VPS，默认检测IPV4地址优先
-
-对于国内VPS，极大概率会遇到脚本不可用的问题
 
 ## 关于脚本被不要脸的YouTuber抄的经过
 
