@@ -59,7 +59,7 @@ install_base(){
         ${PACKAGE_UPDATE[int]}
     fi
     ${PACKAGE_INSTALL[int]} curl wget sudo socat
-    if [[ $SYSTEM == $CentOS ]]; then
+    if [[ $SYSTEM == "CentOS" ]]; then
         ${PACKAGE_INSTALL[int]} cronie
         systemctl start crond
         systemctl enable crond
