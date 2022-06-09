@@ -5,15 +5,15 @@ GREEN="\033[32m"
 YELLOW="\033[33m"
 PLAIN='\033[0m'
 
-red() {
+red(){
     echo -e "\033[31m\033[01m$1\033[0m"
 }
 
-green() {
+green(){
     echo -e "\033[32m\033[01m$1\033[0m"
 }
 
-yellow() {
+yellow(){
     echo -e "\033[33m\033[01m$1\033[0m"
 }
 
@@ -37,7 +37,7 @@ done
 
 [[ -z $SYSTEM ]] && red "不支持当前VPS系统，请使用主流的操作系统" && exit 1
 
-back2menu() {
+back2menu(){
     green "所选操作执行完成"
     read -rp "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
     case "$back2menuInput" in
@@ -82,7 +82,7 @@ check_80(){
     yellow "检查 80 端口是否占用..."
     sleep 1
 
-    if [[ 0 -eq $(lsof -i:"80" | grep -i -c "listen") ]]; then
+    if [[ $(lsof -i:"80" | grep -i -c "listen") -eq 0 ]]; then
         green "目前 80 端口未被占用"
         sleep 1
     else
