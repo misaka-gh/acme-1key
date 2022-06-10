@@ -88,7 +88,7 @@ install_acme(){
         red "抱歉，Acme.sh证书申请脚本安装失败"
         green "建议如下："
         yellow "1. 检查VPS的网络环境"
-        yellow "2. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+        yellow "2. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
     fi
     back2menu
 }
@@ -166,9 +166,9 @@ getSingleCert(){
                 green "${domain} 解析结果：（$domainIP）"
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
                 green "建议如下："
-                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
+                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)，其他域名解析或CDN网站设置同理"
                 yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
-                yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+                yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
                 exit 1
             fi
         fi
@@ -187,7 +187,7 @@ getDomainCert(){
     read -rp "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
-        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
+        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
     read -rp "请输入CloudFlare Global API Key：" GAK
@@ -211,7 +211,7 @@ getSingleDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的域名：" domain
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
-        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
+        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
     read -rp "请输入CloudFlare Global API Key：" GAK
@@ -243,7 +243,7 @@ checktls() {
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
             yellow "2. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
-            yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+            yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
             back2menu
         fi
     fi
