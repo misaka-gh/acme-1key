@@ -145,7 +145,7 @@ getSingleCert(){
             fi
             if [[ $domainIP == $realipv4 ]]; then
                 # 二次确认，防止IPv4地址被ip.sb bug识别成IPv6地址
-                if [[ -z $(echo $realip | grep ":") ]]; then
+                if [[ -z $(echo $realipv4 | grep ":") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
                 fi
             fi
