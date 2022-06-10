@@ -134,10 +134,15 @@ getSingleCert(){
         domainIP=$(curl -sm8 ipget.net/?ip="$domain")
         if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
             if [[ $domainIP == $realipv6 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+                if [[ -n $(echo $realipv6 | grep ":") ]]; then
+                    bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+                fi
             fi
             if [[ $domainIP == $realipv4 ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+                # 二次确认，防止IPv4地址被ip.sb bug识别成ipv6地址
+                if [[ -z $(echo $realip | grep ":") ]]; then
+                    bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+                fi
             fi
         else
             if [[ $domainIP == $ipv6 ]]; then
