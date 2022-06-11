@@ -28,16 +28,24 @@ PACKAGE_UNINSTALL=("apt -y autoremove" "apt -y autoremove" "yum -y autoremove" "
 CMD=("$(grep -i pretty_name /etc/os-release 2>/dev/null | cut -d \" -f2)" "$(hostnamectl 2>/dev/null | grep -i system | cut -d : -f2)" "$(lsb_release -sd 2>/dev/null)" "$(grep -i description /etc/lsb-release 2>/dev/null | cut -d \" -f2)" "$(grep . /etc/redhat-release 2>/dev/null)" "$(grep . /etc/issue 2>/dev/null | cut -d \\ -f1 | sed '/^[ ]*$/d')")
 
 for i in "${CMD[@]}"; do
-    SYS="$i" && [[ -n $SYS ]] && break
+    SYS="$i" 
+    if [[ -n $SYS ]]; then
+        break
+    fi
 done
 
 for ((int = 0; int < ${#REGEX[@]}; int++)); do
-    [[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]] && SYSTEM="${RELEASE[int]}" && [[ -n $SYSTEM ]] && break
+    if [[ $(echo "$SYS" | tr '[:upper:]' '[:lower:]') =~ ${REGEX[int]} ]]; then
+        SYSTEM="${RELEASE[int]}"
+        if [[ -n $SYSTEM ]]; then
+            break
+        fi
+    fi
 done
 
 [[ -z $SYSTEM ]] && red "不支持当前VPS系统，请使用主流的操作系统" && exit 1
 
-back2menu(){
+back2menu() {
     green "所选操作执行完成"
     read -rp "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
     case "$back2menuInput" in
@@ -46,15 +54,30 @@ back2menu(){
     esac
 }
 
+install_base(){
+    if [[ ! $SYSTEM == "CentOS" ]]; then
+        ${PACKAGE_UPDATE[int]}
+    fi
+    ${PACKAGE_INSTALL[int]} curl wget sudo socat
+    if [[ $SYSTEM == "CentOS" ]]; then
+        ${PACKAGE_INSTALL[int]} cronie
+        systemctl start crond
+        systemctl enable crond
+    else
+        ${PACKAGE_INSTALL[int]} cron
+        systemctl start cron
+        systemctl enable cron
+    fi
+}
+
 install_acme(){
-    [[ ! $SYSTEM == "CentOS" ]] && ${PACKAGE_UPDATE[int]}
-    [[ -z $(type -P curl) ]] && ${PACKAGE_INSTALL[int]} curl
-    [[ -z $(type -P wget) ]] && ${PACKAGE_INSTALL[int]} wget
-    [[ -z $(type -P socat) ]] && ${PACKAGE_INSTALL[int]} socat
-    [[ -z $(type -P cron) && $SYSTEM =~ Debian|Ubuntu ]] && ${PACKAGE_INSTALL[int]} cron && systemctl start cron && systemctl enable cron
-    [[ -z $(type -P crond) && $SYSTEM == CentOS ]] && ${PACKAGE_INSTALL[int]} cronie && systemctl start crond && systemctl enable crond
-    read -rp "请输入注册邮箱（例：admin@gmail.com，或留空自动生成）：" acmeEmail
-    [[ -z $acmeEmail ]] && autoEmail=$(date +%s%N | md5sum | cut -c 1-32) && acmeEmail=$autoEmail@gmail.com
+    install_base
+    read -rp "请输入注册邮箱（例：admin@gmail.com，或留空自动生成一个gmail邮箱）：" acmeEmail
+    if [[ -z $acmeEmail ]]; then
+        autoEmail=$(date +%s%N | md5sum | cut -c 1-32)
+        acmeEmail=$autoEmail@gmail.com
+        yellow "已取消输入，使用自动生成的gmail邮箱：$acmeEmail"
+    fi
     curl https://get.acme.sh | sh -s email=$acmeEmail
     source ~/.bashrc
     bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
@@ -65,7 +88,7 @@ install_acme(){
         red "抱歉，Acme.sh证书申请脚本安装失败"
         green "建议如下："
         yellow "1. 检查VPS的网络环境"
-        yellow "2. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+        yellow "2. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
     fi
     back2menu
 }
@@ -82,7 +105,7 @@ check_80(){
     yellow "检查 80 端口是否占用..."
     sleep 1
 
-    if [[ $(lsof -i:"80" | grep -i -c "listen") -eq 0 ]]; then
+    if [[  $(lsof -i:"80" | grep -i -c "listen") -eq 0 ]]; then
         green "目前 80 端口未被占用"
         sleep 1
     else
@@ -105,7 +128,8 @@ getSingleCert(){
     WARPv6Status=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
-    realip=$(curl -sm8 http://ip.sb)
+    realipv4=$(curl -s4m8 http://ip.sb)
+    realipv6=$(curl -s6m8 http://ip.sb)
     read -rp "请输入解析完成的域名:" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
@@ -113,10 +137,17 @@ getSingleCert(){
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
         domainIP=$(curl -sm8 ipget.net/?ip="$domain")
         if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
-            if [[ -n $(echo $realip | grep ":") ]]; then
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
-            else
-                bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+            if [[ $domainIP == $realipv6 ]]; then
+                # 二次确认，防止IPv6地址被ip.sb bug识别成IPv4地址
+                if [[ -n $(echo $realipv6 | grep ":") ]]; then
+                    bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+                fi
+            fi
+            if [[ $domainIP == $realipv4 ]]; then
+                # 二次确认，防止IPv4地址被ip.sb bug识别成IPv6地址
+                if [[ -z $(echo $realipv4 | grep ":") ]]; then
+                    bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+                fi
             fi
         else
             if [[ $domainIP == $ipv6 ]]; then
@@ -131,18 +162,18 @@ getSingleCert(){
             yellow "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本"
             exit 1
         elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
-            if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]] && [[ $domainIP != $realip ]]; then
+            if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]] && [[ $domainIP != $realipv4 ]] && [[ $domainIP != $realipv6 ]]; then
                 green "${domain} 解析结果：（$domainIP）"
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
                 green "建议如下："
-                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)，其他域名解析网站设置同理"
+                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)，其他域名解析或CDN网站设置同理"
                 yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
-                yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+                yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
                 exit 1
             fi
         fi
     else
-        red "疑似泛域名解析，请使用泛域名申请模式"
+        red "目前疑似使用泛域名解析，请使用泛域名申请模式"
         back2menu
     fi
     bash ~/.acme.sh/acme.sh --install-cert -d ${domain} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
@@ -156,7 +187,7 @@ getDomainCert(){
     read -rp "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
-        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
+        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
     read -rp "请输入CloudFlare Global API Key：" GAK
@@ -180,7 +211,7 @@ getSingleDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的域名：" domain
     if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
-        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法申请！"
+        red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
     read -rp "请输入CloudFlare Global API Key：" GAK
@@ -212,7 +243,7 @@ checktls() {
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
             yellow "2. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
-            yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues或TG群询问"
+            yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
             back2menu
         fi
     fi
@@ -259,12 +290,9 @@ renew_cert() {
 
 uninstall() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装Acme.sh，卸载程序无法执行" && exit 1
-    curl https://get.acme.sh | sh
     ~/.acme.sh/acme.sh --uninstall
     sed -i '/--cron/d' /etc/crontab >/dev/null 2>&1
     rm -rf ~/.acme.sh
-    rm -f acme1key.sh
-    back2menu
 }
 
 menu() {
@@ -290,6 +318,7 @@ menu() {
     echo -e " ${GREEN}6.${PLAIN} 查看已申请的证书"
     echo -e " ${GREEN}7.${PLAIN} 撤销并删除已申请的证书"
     echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
+    echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
     read -rp "请输入选项 [0-8]:" NumberInput
