@@ -186,7 +186,7 @@ getDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
-    if [[ $(echo $ym | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
+    if [[ $(echo $domain | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
@@ -210,7 +210,7 @@ getSingleDomainCert(){
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的域名：" domain
-    if [[ $(echo $ym | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
+    if [[ $(echo $domain | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
