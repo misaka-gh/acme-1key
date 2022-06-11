@@ -15,4 +15,4 @@ jobs:
       - name: Run Shellcheck
         uses: azohra/shell-linter@v0.6.0
         with:
-          path: "warp-up.sh"
+          path: "acme1key.sh"
