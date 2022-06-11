@@ -242,7 +242,7 @@ checktls() {
             red "抱歉，证书申请失败"
             green "建议如下："
             yellow "1. 自行检测防火墙是否打开，如使用80端口申请模式时，请关闭防火墙或放行80端口"
-            yellow "2. 同一域名多次申请可能会触发Let's Encrypt官方风控，请更换域名或等待7天后再尝试执行脚本"
+            yellow "2. 同一域名多次申请可能会触发Let's Encrypt官方风控，请尝试使用脚本菜单的9选项更换证书颁发机构，再重试申请证书，或更换域名、或等待7天后再尝试执行脚本"
             yellow "3. 脚本可能跟不上时代，建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
             back2menu
         fi
