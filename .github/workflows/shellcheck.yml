@@ -1,0 +1,18 @@
+name: Shell Check
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  ShellCheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+
+      - name: Run Shellcheck
+        uses: azohra/shell-linter@v0.6.0
+        with:
+          path: "warp-up.sh"
