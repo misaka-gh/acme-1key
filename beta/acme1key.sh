@@ -337,7 +337,7 @@ menu() {
     echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
-    read -rp "请输入选项 [0-8]:" NumberInput
+    read -rp "请输入选项 [0-9]:" NumberInput
     case "$NumberInput" in
         1) install_acme ;;
         2) uninstall ;;
