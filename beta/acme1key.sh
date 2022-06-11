@@ -288,6 +288,21 @@ renew_cert() {
     fi
 }
 
+switch_provider(){
+    yellow "请选择证书提供商, 默认通过 Letsencrypt.org 来申请证书 "
+    yellow "如果证书申请失败, 例如一天内通过 Letsencrypt.org 申请次数过多, 可选 BuyPass.com 或 ZeroSSL.com 来申请."
+    echo -e " ${GREEN}1.${PLAIN} Letsencrypt.org"
+    echo -e " ${GREEN}2.${PLAIN} BuyPass.com"
+    echo -e " ${GREEN}3.${PLAIN} ZeroSSL.com"
+    read -rp "请选择证书提供商 [1-3，默认1]: " provider
+    case $provider in
+        2) bash ~/.acme.sh/acme.sh --set-default-ca --server buypass && green "切换证书提供商为 BuyPass.com 成功！" ;;
+        3) bash ~/.acme.sh/acme.sh --set-default-ca --server zerossl && green "切换证书提供商为 ZeroSSL.com 成功！" ;;
+        *) bash ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt && green "切换证书提供商为 Letsencrypt.org 成功！" ;;
+    esac
+    back2menu
+}
+
 uninstall() {
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装Acme.sh，卸载程序无法执行" && exit 1
     ~/.acme.sh/acme.sh --uninstall
@@ -318,6 +333,7 @@ menu() {
     echo -e " ${GREEN}6.${PLAIN} 查看已申请的证书"
     echo -e " ${GREEN}7.${PLAIN} 撤销并删除已申请的证书"
     echo -e " ${GREEN}8.${PLAIN} 手动续期已申请的证书"
+    echo -e " ${GREEN}9.${PLAIN} 切换证书颁发机构"
     echo " -------------"
     echo -e " ${GREEN}0.${PLAIN} 退出脚本"
     echo ""
@@ -331,6 +347,7 @@ menu() {
         6) view_cert ;;
         7) revoke_cert ;;
         8) renew_cert ;;
+        9) switch_provider ;;
         *) exit 1 ;;
     esac
 }
