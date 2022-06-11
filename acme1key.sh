@@ -74,7 +74,7 @@ install_acme(){
     install_base
     read -rp "请输入注册邮箱（例：admin@gmail.com，或留空自动生成一个gmail邮箱）：" acmeEmail
     if [[ -z $acmeEmail ]]; then
-        autoEmail=$(date +%s%N | md5sum | cut -c 1-32)
+        autoEmail=$(date +%s%N | md5sum | cut -c 1-16)
         acmeEmail=$autoEmail@gmail.com
         yellow "已取消输入，使用自动生成的gmail邮箱：$acmeEmail"
     fi
