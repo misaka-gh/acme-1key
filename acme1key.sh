@@ -46,7 +46,8 @@ done
 [[ -z $SYSTEM ]] && red "不支持当前VPS系统，请使用主流的操作系统" && exit 1
 
 back2menu() {
-    green "所选操作执行完成"
+    echo ""
+    green "所选命令操作执行完成"
     read -rp "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
     case "$back2menuInput" in
         y) exit 1 ;;
@@ -141,12 +142,18 @@ getSingleCert(){
                 # 二次确认，防止IPv6地址被ip.sb bug识别成IPv4地址
                 if [[ -n $(echo $realipv6 | grep ":") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+                else
+                    red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
+                    back2menu
                 fi
             fi
             if [[ $domainIP == $realipv4 ]]; then
                 # 二次确认，防止IPv4地址被ip.sb bug识别成IPv6地址
                 if [[ -z $(echo $realipv4 | grep ":") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+                else
+                    red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
+                    back2menu
                 fi
             fi
         else
