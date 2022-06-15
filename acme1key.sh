@@ -110,9 +110,9 @@ check_80(){
         green "目前 80 端口未被占用"
         sleep 1
     else
-        red "检测到 80 端口被占用，以下为 80 端口占用信息"
+        red "检测到 80 端口被其他程序被占用，以下为 80 端口的占用信息"
         lsof -i:"80"
-        read -rp "如需结束占用进程请按Y，按其他键退出：" yn
+        read -rp "如需结束占用进程请按Y，按其他键则退出 [Y/N]：" yn
         if [[ $yn =~ "Y"|"y" ]]; then
             lsof -i:"80" | awk '{print $2}' | grep -v "PID" | xargs kill -9
             sleep 1
