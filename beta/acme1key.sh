@@ -140,7 +140,7 @@ getSingleCert(){
         if [[ $WARPv4Status =~ on|plus ]] || [[ $WARPv6Status =~ on|plus ]]; then
             if [[ $domainIP == $realipv6 ]]; then
                 # 二次确认，防止IPv6地址被ip.sb bug识别成IPv4地址
-                if [[ -n $(echo $realipv6 | grep ":") ]]; then
+                if [[ -n $(echo $realipv6 | grep ":") && -z $(echo $realipv6 | grep ".") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
                 else
                     red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
@@ -149,7 +149,7 @@ getSingleCert(){
             fi
             if [[ $domainIP == $realipv4 ]]; then
                 # 二次确认，防止IPv4地址被ip.sb bug识别成IPv6地址
-                if [[ -z $(echo $realipv4 | grep ":") ]]; then
+                if [[ -z $(echo $realipv4 | grep ":") && -n $(echo $realipv4 | grep ".") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
                 else
                     red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
