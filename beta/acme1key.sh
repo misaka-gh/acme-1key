@@ -46,7 +46,8 @@ done
 [[ -z $SYSTEM ]] && red "不支持当前VPS系统，请使用主流的操作系统" && exit 1
 
 back2menu() {
-    green "所选操作执行完成"
+    echo ""
+    green "所选命令操作执行完成"
     read -rp "请输入“y”退出，或按任意键回到主菜单：" back2menuInput
     case "$back2menuInput" in
         y) exit 1 ;;
@@ -109,9 +110,9 @@ check_80(){
         green "目前 80 端口未被占用"
         sleep 1
     else
-        red "检测到 80 端口被占用，以下为 80 端口占用信息"
+        red "检测到 80 端口被其他程序被占用，以下为 80 端口的占用信息"
         lsof -i:"80"
-        read -rp "如需结束占用进程请按Y，按其他键退出：" yn
+        read -rp "如需结束占用进程请按Y，按其他键则退出 [Y/N]：" yn
         if [[ $yn =~ "Y"|"y" ]]; then
             lsof -i:"80" | awk '{print $2}' | grep -v "PID" | xargs kill -9
             sleep 1
@@ -141,12 +142,18 @@ getSingleCert(){
                 # 二次确认，防止IPv6地址被ip.sb bug识别成IPv4地址
                 if [[ -n $(echo $realipv6 | grep ":") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256 --listen-v6
+                else
+                    red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
+                    back2menu
                 fi
             fi
             if [[ $domainIP == $realipv4 ]]; then
                 # 二次确认，防止IPv4地址被ip.sb bug识别成IPv6地址
                 if [[ -z $(echo $realipv4 | grep ":") ]]; then
                     bash ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+                else
+                    red "检测IP失败，请关闭Wgcf-WARP后再使用本脚本申请证书"
+                    back2menu
                 fi
             fi
         else
@@ -186,7 +193,7 @@ getDomainCert(){
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的泛域名（输入格式：example.com）：" domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
-    if [[ $(echo $domain | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
+    if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
@@ -210,7 +217,7 @@ getSingleDomainCert(){
     ipv4=$(curl -s4m8 https://ip.gs)
     ipv6=$(curl -s6m8 https://ip.gs)
     read -rp "请输入需要申请证书的域名：" domain
-    if [[ $(echo $domain | awk -F '.' '{print $NF}') =~ cf|ga|gq|ml|tk ]]; then
+    if [[ $(echo ${domain:0-2}) =~ cf|ga|gq|ml|tk ]]; then
         red "检测为Freenom免费域名，由于CloudFlare API不支持，故无法使用本模式申请！"
         back2menu
     fi
