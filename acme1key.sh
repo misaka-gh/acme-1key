@@ -134,6 +134,15 @@ acme_standalone(){
     ipv4=$(curl -s4m10 https://ip.gs)
     ipv6=$(curl -s6m10 https://ip.gs)
     
+    yellow "使用80端口申请模式时, 请先将您的域名解析至你的VPS的真实IP地址, 否则会导致证书申请失败"
+    if [[ -n $ipv4 && -n $ipv6 ]]; then
+        echo -e "VPS的真实IPv4地址为: ${GREEN} $ipv4 ${PLAIN}"
+        echo -e "VPS的真实IPv6地址为: ${GREEN} $ipv6 ${PLAIN}"
+    elif [[ -n $ipv4 && -z $ipv6 ]]; then
+        echo -e "VPS的真实IPv4地址为: ${GREEN} $ipv4 ${PLAIN}"
+    elif [[ -z $ipv4 && -n $ipv6 ]]; then
+        echo -e "VPS的真实IPv6地址为: ${GREEN} $ipv6 ${PLAIN}"
+    fi
     read -rp "请输入解析完成的域名: " domain
     [[ -z $domain ]] && red "未输入域名，无法执行操作！" && exit 1
     green "已输入的域名：$domain" && sleep 1
