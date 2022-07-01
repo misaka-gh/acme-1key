@@ -160,14 +160,14 @@ acme_standalone(){
     fi
     
     if [[ -n $(echo $domainIP | grep nginx) ]]; then
-        yellow "域名解析无效, 请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本"
+        yellow "域名解析失败, 请检查域名是否正确填写或等待解析完成再执行脚本"
         exit 1
     elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
         if [[ $domainIP != $ipv4 ]] && [[ $domainIP != $ipv6 ]]; then
             if [[ -n $(type -P wg-quick) && -n $(type -P wgcf) ]]; then
                 wg-quick up wgcf >/dev/null 2>&1
             fi
-            green "${domain} 目前的解析IP: ($domainIP)"
+            green "域名 ${domain} 目前解析的IP: ($domainIP)"
             red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
             green "建议如下："
             yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS), 其他域名解析或CDN网站设置同理"
